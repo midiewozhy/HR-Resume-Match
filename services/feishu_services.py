@@ -3,24 +3,37 @@ import lark_oapi as lark
 from lark_oapi.api.docs.v1 import *
 import time
 import json
-import apscheduler as scheduler
-import atexit
+import hashlib
 import logging
 from threading import Lock
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 
-
-# 替换原导入方式，创建实际调度器实例
+# 初始化调度器
 scheduler = BackgroundScheduler()
-scheduler.start()  # 启动调度器
-atexit.register(lambda: scheduler.shutdown())  # 程序退出时关闭
+scheduler.start()
+atexit.register(lambda: scheduler.shutdown())
 
-# 缓存定时更新的token_info（全局变量，供后续任务复用）
+# 从resources获取相应数据
+
+# 缓存与锁机制
 _token_cache = None
-_content_cache={"_pre_content_cache":"","_paper_content_cache":"","_tag_content_cache":""}
-_prompt_cache = ""
-_cache_lock = Lock()  # 确保并发安全
+_content_cache = {
+    "_pre_content_cache": "",
+    "_paper_content_cache": "",
+    "_tag_content_cache": ""
+}
+# 新增哈希缓存（存储各内容的哈希值）
+_content_hash_cache = {
+    "_pre_content_hash": "",
+    "_paper_content_hash": "",
+    "_tag_content_hash": ""
+}
+_system_prompt_cache = [
+        {"role": "system", "content": ''},
+    ]
+_cache_lock = Lock()
 
 
 
@@ -115,11 +128,12 @@ def get_feishu_doc_content(doc_token: str, access_token: str) -> str:
     # 返回文档内容
     return response.data.content
 
+def calculate_content_hash(content: str) -> str:
+    # 计算文档hash值
+    return hashlib.md5(content.encode('utf-8')).hexdigest()
 
-def get_rating_prompt(pre_score_content: str, tag_content: str, paper_score_content: str, resume_content: str, paper_urls: list) -> list:
 
-    # 提取可能的论文链接
-    urls_desc = "、".join(paper_urls) if paper_urls else "没有可供参考论文链接"
+def get_system_prompt(pre_score_content: str, tag_content: str, paper_score_content: str) -> list:
 
     # 给大模型的系统prompt
     system_prompt = f"""
@@ -152,20 +166,10 @@ def get_rating_prompt(pre_score_content: str, tag_content: str, paper_score_cont
     }}
     """
 
-    # 构造 User Prompt（明确任务 + 输入关联）
-    user_prompt = f"""
-    分析素材：  
-    - 简历内容：{resume_content}  
-    - 论文链接：{urls_desc}  
-    - 评分标准（预打分用）：{pre_score_content}  
-    - 岗位画像（匹配岗位用）：{tag_content}  
-    - 论文打分方针（有论文时用）：{paper_score_content} 
-    请严格按 system prompt 输出 JSON。  
-    """
+
 
     return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
+        {"role": "system", "content": system_prompt}
     ]
 
 
@@ -181,52 +185,45 @@ def schedule_access_token(app_id: str, app_secret: str, interval_hours: int = 1)
     scheduler.add_job(_update_token, 'interval', hours=interval_hours, next_run_time=datetime.now())
 
 def schedule_doc_content(doc_token: str, content_type: str, interval_hours: int = 1):
-    cache_key = f"_{content_type}_content_cache"
+    content_cache_key = f"_{content_type}_content_cache"
+    hash_cache_key = f"_{content_type}_content_hash"
     def _fetch_content():
-        global _token_cache, _content_cache
+        global _token_cache, _content_cache, _content_hash_cache
         with _cache_lock:
             if not _token_cache:
                 logging.error("token缓存为空，无法获取文档内容")
                 return
             # 直接使用缓存的token_info，无需重复调用get_access_token
             content = get_feishu_doc_content(doc_token, _token_cache["access_token"])
+            content_hash = calculate_content_hash(content)
             if content:
-                _content_cache[cache_key] = content
+                if content_hash != _content_hash_cache[hash_cache_key]:
+                    _content_cache[content_cache_key] = content
+                    _content_hash_cache[hash_cache_key] = content_hash
+                    return 1
+                else:
+                    logging.info("文档未更新")
+                    return 0
             else:
                 logging.error("文档获取为空")
             logging.info("使用缓存token获取文档内容成功")
     # 定时任务配置（滞后token更新10分钟）
     scheduler.add_job(_fetch_content, 'interval', hours=interval_hours, next_run_time=datetime.now() + timedelta(minutes=10))
 
-def schedule_rating_prompt(resume_content: str, paper_urls: list, interval_hours: int = 1):
-    def _update_prompt():
-        global _prompt_cache
-        with _cache_lock:
-            contents = _content_cache.values()
-            for content in contents:
-                if not content:
-                    logging.error("content缓存为空，没有可获取的文档内容")
-                    return
-            prompt = get_rating_prompt(_content_cache['_pre_content_cache'], _content_cache["_tag_content_cache"], _content_cache["_paper_content_cache"],resume_content, paper_urls)
-            if prompt:
-                _prompt_cache = prompt
-            else:
-                logging.error("prompt update为空")
-            logging.info("prompt缓存更新成功")
-    # 定时任务配置（滞后content更新10分钟）
-    scheduler.add_job(_update_prompt, 'interval', hours=interval_hours, next_run_time=datetime.now() + timedelta(minutes=20))
-
 def start_feishu_schedule(app_id: str, app_secret: str, doc_token: str, resume_content: str, paper_urls: list):
     """启动所有定时任务（按依赖顺序初始化）"""
+    global _system_prompt_cache
     # 1. 优先启动token定时更新（基础依赖）
-    schedule_access_token(app_id, app_secret, interval_hours=1)
+    schedule_access_token(app_id, app_secret, interval_hours=2)
     
     # 2. 启动文档内容定时获取（依赖token）
-    schedule_doc_content(doc_token, 'pre', interval_hours=1)
-    schedule_doc_content(doc_token, 'paper', interval_hours=1)
-    schedule_doc_content(doc_token, 'tag', interval_hours=1)
+    first_update = schedule_doc_content(doc_token, 'pre', interval_hours=2)
+    second_update = schedule_doc_content(doc_token, 'paper', interval_hours=2)
+    third_update = schedule_doc_content(doc_token, 'tag', interval_hours=2)
+
+    # 3. 判断文档是否更新，如果更新则重新构建prompt，如果未更新则不执行任务
+    if first_update + second_update + third_update != 0:
+        _system_prompt_cache = get_system_prompt(_content_cache["_pre_content_cache"], _content_cache["_tag_content_cache"], _content_cache["_paper_content_cache"])
     
-    # 3. 启动prompt定时生成（依赖token和文档内容）
-    schedule_rating_prompt(resume_content, paper_urls, interval_hours=1)
     
     logging.info("飞书服务定时任务已启动，依赖关系：token→文档内容→prompt")
