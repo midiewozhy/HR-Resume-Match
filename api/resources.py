@@ -4,7 +4,6 @@ from services.resources_services import (
     save_temp_file, 
     read_pdf,
     validate_paper_url,
-    get_session_id,
     InvalidFileTypeError,  # Service层定义的自定义异常
     FileTooLargeError,
     PDFReadError,
