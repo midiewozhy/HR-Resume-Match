@@ -12,7 +12,7 @@ tag_content = _content_cache["_tag_content_cache"]
 
 # 获取相应resume以及pdf内容
 # 获取信息获取的唯一标识符
-session_id = get_session_id
+session_id = get_session_id()
 resume = _user_data[session_id]["resume"]
 pdf_urls = _user_data[session_id]["pdf_desc"]
 
