@@ -14,7 +14,7 @@ from services.resources_services import (
 import logging
 import os
 from threading import Lock
-import uuid
+from services.general_services import get_session_id
 
 _user_data = {}
 _data_lock = Lock()
@@ -176,6 +176,11 @@ def upload_paper_url():
     paper_urls = [data.get(field) for field in url_fields if data.get(field)]
     
     # 5. 若未提供任何URL，返回提示
+    with _data_lock:
+            if session_id not in _user_data:
+                _user_data[session_id] = {'resume':'', 'pdf_desc':[]}
+            else:
+                _user_data[session_id]['pdf_desc'] = []
     if not paper_urls:
         return jsonify({
             "status": "info",
