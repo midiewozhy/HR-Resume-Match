@@ -10,7 +10,6 @@ import requests
 from urllib.parse import urlparse
 from requests.exceptions import RequestException
 
-
 # 自定义error类型
 class InvalidFileTypeError(Exception):
     """文件类型不符合要求"""
