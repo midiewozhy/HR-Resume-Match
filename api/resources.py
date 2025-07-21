@@ -18,7 +18,7 @@ from services.general_services import get_session_id
 _user_data = {}
 _data_lock = Lock()
 
-resources_bp = Blueprint('pdf', __name__, url_prefix='/api/pdf')
+resources_bp = Blueprint('resources', __name__, url_prefix='/api/resources')
 
 
 @resources_bp.route('/upload/pdf', methods=['POST'])
