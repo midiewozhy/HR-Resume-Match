@@ -3,7 +3,7 @@ import json
 from general_services import get_session_id
 from feishu_services import _content_cache, _system_prompt_cache
 from api.resources import _user_data
-from client import client
+from client import llm_client
 from config import Config
 import re
 from flask import jsonify
@@ -50,7 +50,7 @@ def analyze_candidate():
     logging.info(f"收到候选人分析请求 | session_id: {session_id} | prompt: {whole_prompt}")
 
     # 3. 调用大模型
-    completion = client.chat.completions.create(
+    completion = llm_client.chat.completions.create(
         model=Config.BOT_ID,
         messages=whole_prompt,
         temperature=0,
