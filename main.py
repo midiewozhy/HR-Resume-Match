@@ -1,6 +1,7 @@
 # main.py
 from flask import Flask
 from config import Config  # 导入config.py中的Config类
+from services.feishu_services import start_feishu_schedule # 飞书文档获取的线程
 
 # 创建Flask应用实例
 app = Flask(__name__)
