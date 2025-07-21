@@ -1,3 +1,4 @@
 test.ipynb
 .venv
 config.py
+__pycache__
