@@ -9,6 +9,7 @@ from threading import Lock
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+from config import Config
 
 # 初始化调度器
 scheduler = BackgroundScheduler()
@@ -35,9 +36,25 @@ _system_prompt_cache = [
     ]
 _cache_lock = Lock()
 
+# 新增：文档更新标记（记录哪些文档需要更新prompt）
+_docs_need_update = set()  # 存储需要更新prompt的文档类型
+_update_doc_lock = Lock()  # 保护_doc_need_update更新的锁
+_update_prompt_lock = Lock() # 保护prompt更新的锁
 
 
-def get_access_token(app_id, app_secret):
+def wait_for_cache_ready(timeout_seconds: int = 10) -> bool:
+    """等待核心文档缓存就绪"""
+    start_time = time.time()
+    while time.time() - start_time < timeout_seconds:
+        with _cache_lock:
+            if _content_cache["_pre_content_cache"] and _content_cache["_tag_content_cache"] and _content_cache["_paper_content_cache"]:
+                logging.info("核心文档缓存已就绪")
+                return True
+        time.sleep(0.5)  # 避免CPU占用过高
+    logging.warning(f"等待{timeout_seconds}秒后，核心文档缓存仍未就绪")
+    return False
+
+def get_access_token():
     """
     获取自定义应用的app_access_token
     :param app_id: 应用的唯一标识符
@@ -51,7 +68,7 @@ def get_access_token(app_id, app_secret):
     headers = {"Content-Type": "application/json; charset=utf-8"}
 
     # 构建请求体
-    payload = {"app_id": app_id, "app_secret": app_secret}
+    payload = {"app_id": Config.APP_ID, "app_secret": Config.APP_SECRET}
 
     try:
         # 发送POST请求
@@ -99,13 +116,13 @@ def get_feishu_doc_content(doc_token: str, access_token: str) -> str:
     Returns:
         str: 文档内容
     """
-    # 创建client
-    client = (
-        lark.Client.builder()
-        .enable_set_token(True)
-        .log_level(lark.LogLevel.DEBUG)
-        .build()
-    )
+    # 构造飞书client
+    feishu_client = (
+    lark.Client.builder()
+    .enable_set_token(True)
+    .log_level(lark.LogLevel.DEBUG)
+    .build()
+)
 
     # 构造请求对象
     request: GetContentRequest = (
@@ -118,7 +135,7 @@ def get_feishu_doc_content(doc_token: str, access_token: str) -> str:
 
     # 发起请求
     option = lark.RequestOption.builder().user_access_token(access_token).build()
-    response: GetContentResponse = client.docs.v1.content.get(request, option)
+    response: GetContentResponse = feishu_client.docs.v1.content.get(request, option)
 
     # 处理失败返回
     if not response.success():
@@ -137,7 +154,7 @@ def get_system_prompt(pre_score_content: str, tag_content: str, paper_score_cont
 
     # 给大模型的系统prompt
     system_prompt = f"""
-    你是专业人才分析专家，需严格执行以下 MVP 流程：  
+    你是专业人才分析专家，需严格执行以下流程：  
 
     ### 核心规则（必须100%遵守）  
     1. 仅用输入的简历、论文（若有）、评分标准、岗位画像分析，不引入外部知识。  
@@ -173,57 +190,147 @@ def get_system_prompt(pre_score_content: str, tag_content: str, paper_score_cont
     ]
 
 
-def schedule_access_token(app_id: str, app_secret: str, interval_hours: int = 1):
+def update_system_prompt():
+    """统一更新system prompt（合并多次文档更新的结果）"""
+    global _system_prompt_cache, _docs_need_update
+    
+    with _update_prompt_lock:
+        # 检查是否真的需要更新（避免重复执行）
+        if not _docs_need_update:
+            logging.info("没有需要更新的文档，跳过prompt重建")
+            return
+            
+        logging.info(f"开始重建system prompt，触发源：{_docs_need_update}")
+
+        # 检查文档内容是否为空（避免首次更新失败）
+        if not all([_content_cache["_pre_content_cache"], _content_cache["_tag_content_cache"], _content_cache["_paper_content_cache"]]):
+            logging.warning("部分文档内容为空，跳过prompt重建（可能是首次获取失败）")
+            return
+        
+        # 重建prompt
+        _system_prompt_cache = get_system_prompt(
+            _content_cache["_pre_content_cache"],
+            _content_cache["_tag_content_cache"],
+            _content_cache["_paper_content_cache"]
+        )
+        
+        # 重置更新标记
+        _docs_need_update.clear()
+        logging.info("system prompt重建完成")
+
+
+def schedule_access_token(interval_hours: int):
     def _update_token():
         global _token_cache
         with _cache_lock:
-            token_info = get_access_token(app_id, app_secret)
+            token_info = get_access_token()
             if token_info:
                 _token_cache = token_info  # 更新缓存
                 logging.info(f"token缓存更新，有效期至{token_info['timestamp'] + token_info['expire']}")
     # 定时任务配置（同上）
     scheduler.add_job(_update_token, 'interval', hours=interval_hours, next_run_time=datetime.now())
 
-def schedule_doc_content(doc_token: str, content_type: str, interval_hours: int = 1):
+def schedule_doc_content(doc_token: str, content_type: str, interval_hours: int):
+    """调度文档内容更新任务（优化：仅标记更新，延迟合并更新prompt）"""
     content_cache_key = f"_{content_type}_content_cache"
     hash_cache_key = f"_{content_type}_content_hash"
+    
     def _fetch_content():
-        global _token_cache, _content_cache, _content_hash_cache
+        global _token_cache, _content_cache, _content_hash_cache, _docs_need_update
         with _cache_lock:
             if not _token_cache:
                 logging.error("token缓存为空，无法获取文档内容")
                 return
-            # 直接使用缓存的token_info，无需重复调用get_access_token
-            content = get_feishu_doc_content(doc_token, _token_cache["access_token"])
-            content_hash = calculate_content_hash(content)
-            if content:
-                if content_hash != _content_hash_cache[hash_cache_key]:
+                
+            try:
+                # 获取文档内容并检查更新
+                content = get_feishu_doc_content(doc_token, _token_cache["access_token"])
+                content_hash = calculate_content_hash(content)
+                
+                if content and content_hash != _content_hash_cache[hash_cache_key]:
+                    # 更新文档缓存
                     _content_cache[content_cache_key] = content
                     _content_hash_cache[hash_cache_key] = content_hash
-                    return 1
+                    logging.info(f"{content_type}文档内容已更新，标记需要更新prompt")
+                    
+                    # 标记该文档需要更新prompt
+                    with _update_doc_lock:
+                        _docs_need_update.add(content_type)
+                    
                 else:
-                    logging.info("文档未更新")
-                    return 0
+                    logging.info(f"{content_type}文档未更新")
+            except Exception as e:
+                logging.error(f"{content_type}文档更新失败：{e}")
+    
+    scheduler.add_job(_fetch_content, 'interval', hours=interval_hours, next_run_time=datetime.now() + timedelta(minutes=1))
+
+def schedule_prompt_update(interval_hours: int):
+    scheduler.add_job(update_system_prompt, 'interval', hours = interval_hours, next_run_time=datetime.now() + timedelta(minutes=2))
+
+def start_feishu_schedule():
+    """启动所有任务（含首次触发），优化首次同步逻辑"""
+    # 初始化日志
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    
+    # 1. 启动token更新（立即执行）
+    schedule_access_token(interval_hours=2)
+    
+    # 等待token初始化（增加重试机制）
+    token_ready = False
+    for attempt in range(3):  # 最多重试3次
+        time.sleep(1)  # 等待1秒
+        with _cache_lock:
+            if _token_cache:
+                token_ready = True
+                logging.info("Token缓存已就绪")
+                break
+        logging.warning(f"尝试 {attempt+1}/3: Token缓存未就绪")
+    
+    if not token_ready:
+        logging.error("Token初始化失败，无法继续启动服务")
+        return
+    
+    # 2. 启动文档更新（1分钟后首次自动执行）
+    schedule_doc_content(Config.PRE_SCORE_TOKEN, 'pre', interval_hours=2)
+    schedule_doc_content(Config.PAPER_SCORE_TOKEN, 'paper', interval_hours=2)
+    schedule_doc_content(Config.TAG_DOC_TOKEN, 'tag', interval_hours=2)
+    
+    # 3. 启动prompt更新（2分钟后首次自动执行）
+    schedule_prompt_update(interval_hours=0.5)
+    
+    # 4. 首次手动触发：确保文档和prompt初始化成功
+    logging.info("开始首次手动触发文档获取...")
+    
+    # 手动触发文档任务并记录结果
+    doc_fetch_results = {}
+    for job in scheduler.get_jobs():
+        if "fetch_content" in job.id:
+            doc_type = job.id.split('_')[1]  # 从任务ID提取文档类型
+            try:
+                job.func()
+                doc_fetch_results[doc_type] = True
+                logging.info(f"手动触发{doc_type}文档获取成功")
+            except Exception as e:
+                doc_fetch_results[doc_type] = False
+                logging.error(f"手动触发{doc_type}文档获取失败：{e}")
+    
+    # 5. 等待核心文档缓存就绪
+    cache_ready = wait_for_cache_ready(timeout_seconds=15)
+    
+    # 6. 手动触发首次prompt更新（仅当缓存就绪时）
+    if cache_ready:
+        logging.info("开始首次手动触发prompt更新...")
+        update_system_prompt()
+        # 检查prompt是否成功更新
+        with _update_prompt_lock:
+            if _system_prompt_cache and _system_prompt_cache[0]["content"].strip():
+                logging.info("首次prompt构建成功")
             else:
-                logging.error("文档获取为空")
-            logging.info("使用缓存token获取文档内容成功")
-    # 定时任务配置（滞后token更新10分钟）
-    scheduler.add_job(_fetch_content, 'interval', hours=interval_hours, next_run_time=datetime.now() + timedelta(minutes=10))
-
-def start_feishu_schedule(app_id: str, app_secret: str, doc_token: str, resume_content: str, paper_urls: list):
-    """启动所有定时任务（按依赖顺序初始化）"""
-    global _system_prompt_cache
-    # 1. 优先启动token定时更新（基础依赖）
-    schedule_access_token(app_id, app_secret, interval_hours=2)
+                logging.warning("首次prompt构建失败，内容为空")
+    else:
+        logging.warning("核心文档缓存未就绪，跳过首次prompt构建，等待定时任务更新")
     
-    # 2. 启动文档内容定时获取（依赖token）
-    first_update = schedule_doc_content(doc_token, 'pre', interval_hours=2)
-    second_update = schedule_doc_content(doc_token, 'paper', interval_hours=2)
-    third_update = schedule_doc_content(doc_token, 'tag', interval_hours=2)
-
-    # 3. 判断文档是否更新，如果更新则重新构建prompt，如果未更新则不执行任务
-    if first_update + second_update + third_update != 0:
-        _system_prompt_cache = get_system_prompt(_content_cache["_pre_content_cache"], _content_cache["_tag_content_cache"], _content_cache["_paper_content_cache"])
-    
-    
-    logging.info("飞书服务定时任务已启动，依赖关系：token→文档内容→prompt")
+    logging.info("飞书服务启动完成，调度任务已运行")
