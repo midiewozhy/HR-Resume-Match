@@ -31,9 +31,7 @@ _content_hash_cache = {
     "_paper_content_hash": "",
     "_tag_content_hash": ""
 }
-_system_prompt_cache = [
-        {"role": "system", "content": ''},
-    ]
+_system_prompt_cache = [{"role": "system", "content": ""}]
 _cache_lock = Lock()
 
 # 新增：文档更新标记（记录哪些文档需要更新prompt）
@@ -48,6 +46,8 @@ def wait_for_cache_ready(timeout_seconds: int = 10) -> bool:
     while time.time() - start_time < timeout_seconds:
         with _cache_lock:
             if _content_cache["_pre_content_cache"] and _content_cache["_tag_content_cache"] and _content_cache["_paper_content_cache"]:
+                with _update_doc_lock:
+                    _docs_need_update.update(("pre","tag","paper"))
                 logging.info("核心文档缓存已就绪")
                 return True
         time.sleep(0.5)  # 避免CPU占用过高
@@ -194,29 +194,33 @@ def update_system_prompt():
     """统一更新system prompt（合并多次文档更新的结果）"""
     global _system_prompt_cache, _docs_need_update
     
-    with _update_prompt_lock:
-        # 检查是否真的需要更新（避免重复执行）
+    # 检查是否真的需要更新（避免重复执行）
+    with _update_doc_lock:
         if not _docs_need_update:
             logging.info("没有需要更新的文档，跳过prompt重建")
             return
-            
-        logging.info(f"开始重建system prompt，触发源：{_docs_need_update}")
+        
+    logging.info(f"开始重建system prompt，触发源：{_docs_need_update}")
 
-        # 检查文档内容是否为空（避免首次更新失败）
+    # 检查文档内容是否为空（避免首次更新失败）
+    with _cache_lock:
         if not all([_content_cache["_pre_content_cache"], _content_cache["_tag_content_cache"], _content_cache["_paper_content_cache"]]):
             logging.warning("部分文档内容为空，跳过prompt重建（可能是首次获取失败）")
             return
-        
-        # 重建prompt
+    
+    # 重建prompt
+    with _update_prompt_lock:
         _system_prompt_cache = get_system_prompt(
             _content_cache["_pre_content_cache"],
             _content_cache["_tag_content_cache"],
             _content_cache["_paper_content_cache"]
         )
-        
-        # 重置更新标记
+    logging.info(f"重建的prompt如下：{_system_prompt_cache}")
+    
+    # 重置更新标记
+    with _update_doc_lock:
         _docs_need_update.clear()
-        logging.info("system prompt重建完成")
+    logging.info("system prompt重建完成")
 
 
 def schedule_access_token(interval_hours: int):
@@ -228,7 +232,7 @@ def schedule_access_token(interval_hours: int):
                 _token_cache = token_info  # 更新缓存
                 logging.info(f"token缓存更新，有效期至{token_info['timestamp'] + token_info['expire']}")
     # 定时任务配置（同上）
-    scheduler.add_job(_update_token, 'interval', hours=interval_hours, next_run_time=datetime.now())
+    scheduler.add_job(_update_token, 'interval', hours=interval_hours, next_run_time=datetime.now(), id = "update_token", replace_existing=True)
 
 def schedule_doc_content(doc_token: str, content_type: str, interval_hours: int):
     """调度文档内容更新任务（优化：仅标记更新，延迟合并更新prompt）"""
@@ -262,10 +266,10 @@ def schedule_doc_content(doc_token: str, content_type: str, interval_hours: int)
             except Exception as e:
                 logging.error(f"{content_type}文档更新失败：{e}")
     
-    scheduler.add_job(_fetch_content, 'interval', hours=interval_hours, next_run_time=datetime.now() + timedelta(minutes=1))
+    scheduler.add_job(_fetch_content, 'interval', hours=interval_hours, next_run_time=datetime.now() + timedelta(minutes=1), id=f"fetch_content_{content_type}", replace_existing=True)
 
 def schedule_prompt_update(interval_hours: int):
-    scheduler.add_job(update_system_prompt, 'interval', hours = interval_hours, next_run_time=datetime.now() + timedelta(minutes=2))
+    scheduler.add_job(update_system_prompt, 'interval', hours = interval_hours, next_run_time=datetime.now() + timedelta(minutes=2), id = "update_prompt", replace_existing=True)
 
 def start_feishu_schedule():
     """启动所有任务（含首次触发），优化首次同步逻辑"""
@@ -305,17 +309,20 @@ def start_feishu_schedule():
     logging.info("开始首次手动触发文档获取...")
     
     # 手动触发文档任务并记录结果
-    doc_fetch_results = {}
-    for job in scheduler.get_jobs():
-        if "fetch_content" in job.id:
-            doc_type = job.id.split('_')[1]  # 从任务ID提取文档类型
+    logging.info("开始首次手动触发文档获取...")
+    doc_types = ["pre", "paper", "tag"]
+    for doc_type in doc_types:
+        job_id = f"fetch_content_{doc_type}"
+        job = scheduler.get_job(job_id)
+        if job:
             try:
                 job.func()
-                doc_fetch_results[doc_type] = True
                 logging.info(f"手动触发{doc_type}文档获取成功")
             except Exception as e:
-                doc_fetch_results[doc_type] = False
                 logging.error(f"手动触发{doc_type}文档获取失败：{e}")
+        else:
+            logging.warning(f"未找到{doc_type}文档更新任务")
+    
     
     # 5. 等待核心文档缓存就绪
     cache_ready = wait_for_cache_ready(timeout_seconds=15)
