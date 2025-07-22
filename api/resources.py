@@ -14,6 +14,7 @@ import logging
 import os
 from threading import Lock
 from services.general_services import get_session_id
+from services.user_data_manager import UserDataManger
 
 _user_data = {}
 _data_lock = Lock()
