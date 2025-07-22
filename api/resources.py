@@ -12,12 +12,11 @@ from services.resources_services import (
 )
 import logging
 import os
-from threading import Lock
 from services.general_services import get_session_id
-from services.user_data_manager import UserDataManger
+from services.user_data_manager import UserDataManager
 
-_user_data = {}
-_data_lock = Lock()
+# 创建数据储存类
+user_data_manager = UserDataManager()
 
 resources_bp = Blueprint('resources', __name__, url_prefix='/api/resources')
 
@@ -55,7 +54,7 @@ def upload_pdf() -> tuple[dict,int]:
         return jsonify({
             "status": "success",
             "message": f"简历《{secure_name}》上传成功啦！正在准备解析...",  # 包含文件名，增强确认感
-            "temp_path": temp_path  # 后台用的临时路径，不展示给HR
+            "file_temp_path": temp_path  # 后台用的临时路径，不展示给HR
         }), 200
     
     # 捕获“文件类型错误”
@@ -88,21 +87,21 @@ def extract_pdf_content():
     从已经上传的pdf文件中提取文本内容的接口
     """
 
-    global _user_data
     # 1. 获取唯一session_id以作为数据存储的查询一句
     session_id = get_session_id()
+    user_data_manager.initialize_user_data(session_id)
 
     # 2. 获取请求中的JSON数据
     data = request.get_json()
     # 判断data是否为空或者是否储存了temp_path参数
-    if not data or 'temp_path' not in data:
+    if not data or 'file_temp_path' not in data:
         return jsonify({
             "status": "fail",
             "message": "上传好像出了点问题，请重新上传试试呢？"
         }), 400
     
     # data非空且存在temp_path键时，获取对应内容
-    temp_path = data.get('temp_path')
+    temp_path = data.get('file_temp_path')
 
     # 3. 验证文件是否存在
     if not os.path.exists(temp_path):
@@ -117,18 +116,12 @@ def extract_pdf_content():
 
         # 5. 提取成功，保存内容并返回内容
         os.remove(temp_path)  # 解析完就删，避免占用磁盘
-        with _data_lock:
-            if session_id not in _user_data:
-                _user_data[session_id] = {"resume": pdf_content, "paper_desc": []}
-            else:
-                _user_data[session_id]['resume'] = pdf_content
+        user_data_manager.set_user_data(session_id,{"resume": pdf_content})
 
         return jsonify({
             "status": "success",
             "message": "简历解析成功，马上进行分析匹配~",
-            "data": {
-                "test": pdf_content # 提取到的文本内容，供后续大模型调用
-            }
+            "resume_content": pdf_content # 提取到的文本内容，供后续大模型调用
         }), 200
     
     # 处理read_pdf抛出的异常
@@ -157,9 +150,9 @@ def upload_paper_url():
     可选任务：处理HR上传的论文链接
     """
 
-    global _user_data
-    # 1.  获取唯一的session_id作为后续数据保存的查询标识
+    # 1.  获取唯一的session_id作为后续数据保存的查询标识，并初始化数据结构
     session_id = get_session_id()
+    user_data_manager.initialize_user_data(session_id)
 
     # 2. 获取请求中的接送数据
     data = request.get_json()
@@ -176,16 +169,13 @@ def upload_paper_url():
     paper_urls = [data.get(field) for field in url_fields if data.get(field)]
     
     # 5. 若未提供任何URL，返回提示
-    with _data_lock:
-            if session_id not in _user_data:
-                _user_data[session_id] = {'resume':'', 'pdf_desc':[]}
-            else:
-                _user_data[session_id]['pdf_desc'] = []
+
     if not paper_urls:
+        user_data_manager.set_user_data(session_id, {"paper_urls": []})
         return jsonify({
             "status": "info",
             "message": "未检测到论文URL呢~ 我们会仅基于简历进行分析匹配~",
-            "data": {"valid_urls": []}
+            "paper_urls": []
         }), 200
     
     # 6. 验证每个url的有效性
@@ -195,8 +185,7 @@ def upload_paper_url():
         try:
             validate_paper_url(url)  # 调用Service层验证函数
             # 简化URL显示（超长截断）
-            display_url = url[:25] + "..." if len(url) > 25 else url
-            valid_urls.append({"url": url, "display": display_url})
+            valid_urls.append(url)
         except InvalidURLError as e:
             error_messages.append(f"第{idx}个{str(e)}")
         except URLUnreachableError as e:
@@ -207,29 +196,21 @@ def upload_paper_url():
 
     # 7. 处理验证结果
     if error_messages:
+        # 保存数据
+        user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})        
         # 存在无效URL时，返回错误信息（保留有效URL，便于用户修正）
-        with _data_lock:
-            if session_id not in _user_data:
-                _user_data[session_id] = {'resume':'', 'pdf_desc':valid_urls}
-            else:
-                _user_data[session_id]['pdf_desc'] = valid_urls
-
         return jsonify({
             "status": "fail",
             "message": "；".join(error_messages),
-            "data": {"valid_urls": [u["url"] for u in valid_urls]}  # 返回有效的URL
+            "paper_urls": valid_urls  # 返回有效的URL
         }), 400
     else:
         # 所有URL均有效
-        with _data_lock:
-            if session_id not in _user_data:
-                _user_data[session_id] = {'resume':'', 'pdf_desc':valid_urls}
-            else:
-                _user_data[session_id]['pdf_desc'] = valid_urls
+        user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})
         
         count = len(valid_urls)
         return jsonify({
             "status": "success",
             "message": f"{count}个论文链接已收到，正在准备解析~ ",
-            "data": {"paper_urls": [u["url"] for u in valid_urls]}  # 供后续调用的URL列表
+            "paper_urls": valid_urls # 供后续调用的URL列表
         }), 200
