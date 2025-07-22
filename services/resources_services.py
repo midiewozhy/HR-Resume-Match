@@ -151,28 +151,6 @@ def read_pdf(file_path: str) -> str:
 # URL验证函数
 def validate_paper_url(url: str) -> None:
     """
-    验证论文URL的有效性
-    :param url: 论文URL字符串
-    :raises InvalidURLError: 格式不符合要求时
-    :raises URLUnreachableError: 无法访问时
-    """
-
-    # 1. 验证URL格式（基础校验）
-    url_pattern = re.compile(r'^https?://')
-    if not url_pattern.match(url.strip().lower()):
-        raise InvalidURLError()
-
-    # 2. 验证URL可达性（简单校验，超时时间设为5秒）
-    try:
-        response = requests.head(url, timeout=5, allow_redirects=True)
-        if not response.ok:
-            raise URLUnreachableError()
-    except requests.exceptions.RequestException:
-        raise URLUnreachableError()
-
-
-def validate_paper_url(url: str) -> None:
-    """
     验证url格式是否符合正常格式，且是否可达
     """
     # 1. 基础格式验证（必须）
