@@ -6,7 +6,6 @@ from api.resources import user_data_manager
 from client import llm_client
 from config import Config
 import re
-from flask import jsonify
 
 # 静态数据
 # 获取飞书文档内容
