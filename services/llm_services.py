@@ -6,6 +6,7 @@ from api.resources import user_data_manager
 from client import llm_client
 from config import Config
 import re
+import json
 
 # 静态数据
 # 获取飞书文档内容
@@ -14,6 +15,15 @@ paper_score_content = _content_cache["_paper_content_cache"]
 tag_content = _content_cache["_tag_content_cache"]
 # 获取system prompt
 system_prompt = _system_prompt_cache
+
+# 自定义Error类型
+class APIEmptyError(Exception):
+    def __init__(self):
+        super().__init__("非常抱歉，服务暂时不可用哦~请稍后再试或联系技术支持哟！")
+
+class LLMContentEmptyError(Exception):
+    def __init__(self):
+        super().__init__("评估结果生成失败啦~再给大模型一次机会吧！或者也可以联系技术支持哦！")
 
 def get_user_prompt(resume: str, pdf_urls: list):
     user_info = f"""
@@ -59,7 +69,7 @@ def analyze_candidate():
 
     # 4. 校验响应
     if not completion.choices or not completion.choices[0].message.content:
-        raise ValueError("API响应为空")  # 抛出异常，由API层处理
+        raise APIEmptyError # 抛出异常，由API层处理
 
     # 5. 处理返回结果
     ai_ret = completion.choices[0].message.content.strip()
@@ -67,7 +77,16 @@ def analyze_candidate():
     ai_ret = re.sub(r'```\s*$', '', ai_ret)
 
     if not ai_ret:
-        raise ValueError("大模型返回内容为空")  # 抛出异常
+        raise LLMContentEmptyError # 抛出异常
+    
+    if ai_ret.startswith("{{"):
+        ai_ret = ai_ret[1:]
+    if ai_ret.endswith("}}"):
+        ai_ret = ai_ret[:-1]
 
-    # 6. 解析JSON并返回（异常由API层捕获）
-    return json.loads(ai_ret)
+    # 6. 解析JSON并返回
+    try:
+        return json.loads(ai_ret)
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON解析失败 | 内容: {ai_ret[:100]}... | 错误：{str(e)}")
+        raise LLMContentEmptyError from e
