@@ -2,7 +2,7 @@ import logging
 import json
 from general_services import get_session_id
 from feishu_services import _content_cache, _system_prompt_cache
-from api.resources import _user_data
+from api.resources import user_data_manager
 from client import llm_client
 from config import Config
 import re
@@ -41,8 +41,9 @@ def analyze_candidate():
     """分析候选人，内部实时获取动态数据，复用静态数据"""
     # 1. 实时获取当前请求的动态数据（依赖session_id，每次请求可能不同）
     session_id = get_session_id()  # 实时获取当前会话ID
-    resume = _user_data[session_id]["resume"]  # 当前会话的简历
-    pdf_urls = _user_data[session_id]["pdf_desc"]  # 当前会话的论文链接
+    user_data = user_data_manager.get_user_data(session_id)
+    resume = user_data["resume"]  # 当前会话的简历
+    pdf_urls = user_data["pdf_urls"]# 当前会话的论文链接
 
     # 2. 构造prompt（复用静态数据和动态数据）
     user_prompt = get_user_prompt(resume, pdf_urls)  # 传入动态数据，内部引用静态数据
