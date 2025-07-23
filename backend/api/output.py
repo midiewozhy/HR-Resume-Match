@@ -5,6 +5,8 @@ from services.llm_services import (
     )
 from services.output_services import clean_output
 from flask import jsonify, Blueprint
+from resources import user_data_manager
+from services.general_services import get_session_id
 
 # 创建蓝图
 output_bp = Blueprint('output', __name__, url_prefix='/api/output')
@@ -32,3 +34,16 @@ def analyze_cdd_output():
             "status": "fail",
             "message": e
         }), 500
+
+@output_bp.route('/start_new_analysis', methods=['POST'])
+def start_new_analysis():
+    # 获取session_id
+    session_id = get_session_id()
+    
+    # 重置用户数据
+    user_data_manager.initialize_user_data(session_id)
+    
+    return jsonify({
+        "status": "success",
+        "message": "新一轮分析已开启，请重新上传简历和论文URL。"
+    }), 200
