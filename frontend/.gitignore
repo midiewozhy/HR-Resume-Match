@@ -23,6 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# vite开发缓存
 .vite/
+
+# 环境变量，敏感信息
 .env
 .env.*.local
