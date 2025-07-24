@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-white">
-  <div class="min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="min-h-screen flex flex-col items-center justify-center p-2">
     <div class="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full">
       <div class="flex flex-col items-center mb-8">
         <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-2">
@@ -19,11 +19,23 @@
         </p>
       </div>
 
+
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">候选人匹配输出</h2>
+
+      <div class="grid grid-cols-[3fr_2fr] gap-6">
+        <h4 class="text-sm font-bold text-center text-gray-800 mb-2">
+            匹配结果
+        </h4>
+        <h4 class="text-sm font-bold text-center text-gray-800 mb-2">
+            任务进度
+        </h4>
+      </div>
+
+
       <div class="grid grid-cols-[3fr_2fr] gap-6">
         <div class="p-6 rounded-lg border border-purple-400 h-64">
         </div>
         <div class="p-2 rounded-lg border border-purple-400 h-64">
-          <p class="text-black font-semibold text-sm m-0">任务日志：</p>
         </div>
       </div>
 
