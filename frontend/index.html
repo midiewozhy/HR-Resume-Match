@@ -46,6 +46,47 @@
             </div>
         </form>
 
+        <script>
+            const form = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('resumePdf');
+            const urlInput1 = document.getElementById('paperUrl1');
+            const urlInput2 = document.getElementById('paperUrl2');
+            const outputArea = document.getElementById('outputArea');
+            const formData = new FormData();
+
+            // 监听文件选择事件
+            fileInput.addEventListener('change', function() {
+                // 文件选择发生变化后，创建FormData对象
+                formData.append('resumePdf', fileInput.files[0]);
+                
+                // 检查文件是否成功添加
+                const file = formData.get('resumePdf');
+                console.log(file); // 会输出文件对象信息或者null
+                
+                // 可选：检查文件名称和大小
+                if (file) {
+                    console.log('文件名:', file.name);
+                    console.log('文件大小:', file.size, '字节');
+                }});
+            
+            urlInput1.addEventListener('input', function() {
+                // 当第一个URL输入框有内容时，添加到FormData
+                formData.append('paperUrl1', urlInput1.value);
+                const url1 = formData.get('paperUrl1');
+                console.log('论文1 URL:', url1); // 输出第一个URL
+            });
+
+            urlInput2.addEventListener('input', function() {
+                // 当第一个URL输入框有内容时，添加到FormData
+                formData.append('paperUrl2', urlInput2.value);
+                const url2 = formData.get('paperUrl2');
+                console.log('论文2 URL:', url2); // 输出第二个URL
+            });
+
+            
+
+        </script>
+
         <!-- Buttons -->
         <div class="flex space-x-6">
             <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
