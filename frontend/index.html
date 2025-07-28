@@ -47,46 +47,42 @@
         </form>
 
         <script>
-            const form = document.getElementById('uploadForm');
+            // 创建一个全局的FormData对象
+            const formData = new FormData();
+
+            // 通用处理函数 - 处理文件和URL输入变化
+            function handleInputChange(key, element, isFile = false) {
+                return function() {
+                    // 根据是否为文件输入，获取对应的值
+                    const value = isFile ? element.files[0] : element.value;
+                    
+                    // 添加或更新FormData中的值
+                    if (value) {
+                        formData.append(key, value);
+                        console.log(`${key}:`, value);
+                        
+                        // 如果是文件，额外输出文件信息
+                        if (isFile) {
+                            console.log('文件名:', value.name);
+                            console.log('文件大小:', value.size, '字节');
+                        }
+                    } else {
+                        // 如果值为空，从FormData中删除该键（可选）
+                        formData.delete(key);
+                        console.log(`${key} 已清除`);
+                    }
+                };
+            }
+
+            // 获取DOM元素
             const fileInput = document.getElementById('resumePdf');
             const urlInput1 = document.getElementById('paperUrl1');
             const urlInput2 = document.getElementById('paperUrl2');
-            const outputArea = document.getElementById('outputArea');
-            const formData = new FormData();
 
-            // 监听文件选择事件
-            fileInput.addEventListener('change', function() {
-                // 文件选择发生变化后，创建FormData对象
-                formData.append('resumePdf', fileInput.files[0]);
-                
-                // 检查文件是否成功添加
-                const file = formData.get('resumePdf');
-                console.log(file); // 会输出文件对象信息或者null
-                
-                // 可选：检查文件名称和大小
-                if (file) {
-                    console.log('文件名:', file.name);
-                    console.log('文件大小:', file.size, '字节');
-                }});
-            
-            urlInput1.addEventListener('input', function() {
-                // 当第一个URL输入框有内容时，添加到FormData
-                formData.append('paperUrl1', urlInput1.value);
-                const url1 = formData.get('paperUrl1');
-                console.log('论文1 URL:', url1); // 输出第一个URL
-            });
-
-            urlInput2.addEventListener('input', function() {
-                // 当第一个URL输入框有内容时，添加到FormData
-                formData.append('paperUrl2', urlInput2.value);
-                const url2 = formData.get('paperUrl2');
-                console.log('论文2 URL:', url2); // 输出第二个URL
-            });
-
-
-
-            
-
+            // 为每个输入元素添加事件监听器
+            fileInput.addEventListener('change', handleInputChange('resumePdf', fileInput, true));
+            urlInput1.addEventListener('input', handleInputChange('paperUrl1', urlInput1));
+            urlInput2.addEventListener('input', handleInputChange('paperUrl2', urlInput2));
         </script>
 
         <!-- Buttons -->
