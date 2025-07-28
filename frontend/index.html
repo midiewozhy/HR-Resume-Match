@@ -12,195 +12,44 @@
         <!-- Output & Tasklog Area (side by side) -->
         <div class="flex space-x-12 w-full text-xl">
             <div class="flex-1">
-            <label class="block text-gray-700 mb-3 text-xl">Output Area</label>
-            <div id="outputArea" class="bg-gray-50 border rounded-lg p-10 h-80 overflow-auto w-full"></div>
+                <label class="block text-gray-700 mb-3 text-xl">Output Area</label>
+                <div id="outputArea" class="bg-gray-50 border rounded-lg p-10 h-80 overflow-auto w-full"></div>
             </div>
             <div class="flex-1">
-            <label class="block text-gray-700 mb-3 text-xl">Tasklog Area</label>
-            <div id="tasklogArea" class="bg-gray-50 border rounded-lg p-10 h-80 overflow-auto w-full"></div>
+                <label class="block text-gray-700 mb-3 text-xl">Tasklog Area</label>
+                <div id="tasklogArea" class="bg-gray-50 border rounded-lg p-10 h-80 overflow-auto w-full"></div>
             </div>
         </div>
         
         <!-- PDF Upload Area with icon and instruction -->
         <form id="uploadForm">
             <div>
-            <label class="block text-gray-700 mb-3 text-xl">简历上传</label>
-            <div class="flex items-center space-x-5 bg-gray-50 border rounded-lg p-5">
-            <!-- PDF Icon (Heroicons) -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-4m0 0V8m0 4h4m-4 0H8m8 4v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v7a2 2 0 01-2 2h-1"/>
-            </svg>
-            <div class="flex-1">
-            <p class="text-gray-600 text-lg mb-2">请上传PDF文件</p>
-            <input id="resumePdf" type="file" accept="application/pdf" class="block w-full text-gray-700 border rounded-lg p-4 text-lg"/>
-            </div>
-            </div>
+                <label class="block text-gray-700 mb-3 text-xl">简历上传</label>
+                <div class="flex items-center space-x-5 bg-gray-50 border rounded-lg p-5">
+                    <!-- PDF Icon (Heroicons) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-4m0 0V8m0 4h4m-4 0H8m8 4v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v7a2 2 0 01-2 2h-1"/>
+                    </svg>
+                    <div class="flex-1">
+                        <p class="text-gray-600 text-lg mb-2">请上传PDF文件</p>
+                        <input id="resumePdf" type="file" accept="application/pdf" class="block w-full text-gray-700 border rounded-lg p-4 text-lg"/>
+                    </div>
+                </div>
             </div>
             
             <!-- Paper URLs Upload Area -->
             <div>
-            <label class="block text-gray-700 mb-2 text-xl">论文1</label>
-            <input id="paperUrl1" type="url" placeholder="Enter Paper URL 1" class="block w-full border rounded-lg p-4 mb-4 text-lg"/>
-            <label class="block text-gray-700 mb-2 text-xl">论文2</label>
-            <input id="paperUrl2" type="url" placeholder="Enter Paper URL 2" class="block w-full border rounded-lg p-4 text-lg"/>
+                <label class="block text-gray-700 mb-2 text-xl">论文1</label>
+                <input id="paperUrl1" type="url" placeholder="Enter Paper URL 1" class="block w-full border rounded-lg p-4 mb-4 text-lg"/>
+                <label class="block text-gray-700 mb-2 text-xl">论文2</label>
+                <input id="paperUrl2" type="url" placeholder="Enter Paper URL 2" class="block w-full border rounded-lg p-4 text-lg"/>
             </div>
         </form>
-        <script>
-            // 获取PDF文件
-            const pdfInput = document.getElementById('resumePdf');
-            // 获取论文URL
-            const url1Input = document.getElementById('paperUrl1');
-            const url2Input = document.getElementById('paperUrl2');
-
-            // 获取Tasklog区域和Output区域
-            const tasklogArea = document.getElementById('tasklogArea');
-            const outputArea = document.getElementById('outputArea');
-
-            // 上传PDF并解析
-            async function uploadAndExtractPDF() {
-            const pdfFile = pdfInput.files[0];
-            if (!pdfFile) {
-                tasklogArea.textContent = "请先选择PDF文件。";
-                return;
-            }
-
-            // 1. 上传PDF
-            tasklogArea.textContent = "正在上传PDF文件...";
-            const formData = new FormData();
-            formData.append('file', pdfFile);
-
-            let uploadResp, uploadData;
-            try {
-                uploadResp = await fetch('/upload/pdf', {
-                method: 'POST',
-                body: formData
-                });
-                uploadData = await uploadResp.json();
-            } catch (err) {
-                // 网络错误
-                tasklogArea.textContent = "网络错误，请重试。";
-                return;
-            }
-
-            if (uploadResp.status !== 200) {
-                // 后端返回的错误信息
-                tasklogArea.textContent = uploadData.message || "上传失败。";
-                return;
-            }
-
-            // 2. 提取PDF内容
-            tasklogArea.textContent = uploadData.message || "PDF上传成功，正在解析内容...";
-            let extractResp, extractData;
-            try {
-                extractResp = await fetch('/extract', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ file_temp_path: uploadData.file_temp_path })
-                });
-                extractData = await extractResp.json();
-            } catch (err) {
-                // 网络错误
-                tasklogArea.textContent = "网络错误，请重试。";
-                return;
-            }
-
-            if (extractResp.status !== 200) {
-                // 后端返回的错误信息
-                tasklogArea.textContent = extractData.message || "解析失败。";
-                return;
-            }
-
-            // 用到了Python函数return的信息（extractData），但只用于进度提示，没有详细展示内容
-            tasklogArea.textContent = extractData.message || "PDF解析完成。";
-
-            // 上传论文URL
-            await uploadPaperUrls();
-            }
-
-            // 上传论文URL并处理
-            async function uploadPaperUrls() {
-            const url1 = url1Input.value.trim();
-            const url2 = url2Input.value.trim();
-
-            // 只上传有内容的URL
-            const payload = {};
-            if (url1) payload.paper_url_1 = url1;
-            if (url2) payload.paper_url_2 = url2;
-
-            let resp, data;
-            try {
-                resp = await fetch('/upload/paper_url', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-                });
-                data = await resp.json();
-            } catch (err) {
-                tasklogArea.textContent = "网络错误，请重试。";
-                return;
-            }
-
-            // 只展示后端返回的message
-            tasklogArea.textContent = data.message || "论文链接处理完成。";
-            }
-
-            // 开始任务按钮逻辑
-            async function startTask() {
-            tasklogArea.textContent = "正在分析，请稍候...";
-            outputArea.textContent = "";
-            try {
-                const resp = await fetch('/analyze', { method: 'GET' });
-                const result = await resp.json();
-                if (resp.status !== 200 || result.status !== "success") {
-                tasklogArea.textContent = result.message || "分析失败。";
-                outputArea.textContent = "";
-                } else {
-                tasklogArea.textContent = "分析完成。";
-                // 输出data内容到outputArea
-                outputArea.textContent = typeof result.data === "string" ? result.data : JSON.stringify(result.data, null, 2);
-                }
-            } catch (err) {
-                tasklogArea.textContent = "网络错误，请重试。";
-                outputArea.textContent = "";
-            }
-            }
-
-            // 重置任务按钮逻辑
-            async function resetTask() {
-                // 清空前端数据
-                pdfInput.value = "";
-                url1Input.value = "";
-                url2Input.value = "";
-                outputArea.textContent = "";
-                tasklogArea.textContent = "正在重置任务...";
-
-                // 调用后端重置接口
-                try {
-                    const resp = await fetch('/start_new_analysis', { method: 'POST' });
-                    const result = await resp.json();
-                    if (resp.status !== 200 || result.status !== "success") {
-                        tasklogArea.textContent = result.message || "重置失败。";
-                    } else {
-                        tasklogArea.textContent = result.message || "新一轮分析已开启，请重新上传简历和论文URL。";
-                    }
-                } catch (err) {
-                    tasklogArea.textContent = "网络错误，请重试。";
-                }
-            }
-
-            // 按钮绑定
-            document.querySelector('.bg-blue-500').onclick = uploadAndExtractPDF;
-            document.querySelector('.bg-blue-500').addEventListener('click', function() {
-                // 上传和解析完成后，自动调用分析
-                setTimeout(startTask, 1000);
-            });
-            document.querySelector('.bg-green-500').onclick = resetTask;
-        </script>
         
         <!-- Buttons -->
         <div class="flex space-x-6">
             <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
-            开始任务
+                开始任务
             </button>
             <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
                 重置任务
