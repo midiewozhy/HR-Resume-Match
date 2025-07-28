@@ -121,7 +121,7 @@ def extract_pdf_content():
         return jsonify({
             "status": "success",
             "message": "简历解析成功，马上进行分析匹配~",
-            "resume_content": pdf_content # 提取到的文本内容，供后续大模型调用
+            "resume_content": pdf_content  # 提取到的文本内容，供后续大模型调用
         }), 200
     
     # 处理read_pdf抛出的异常
@@ -176,7 +176,7 @@ def upload_paper_url():
             "status": "info",
             "message": "未检测到论文URL呢~ 我们会仅基于简历进行分析匹配~",
             "paper_urls": []
-        }), 200
+        }), 204  # 204表示无内容，但请求成功
     
     # 6. 验证每个url的有效性
     valid_urls = []
