@@ -5,7 +5,7 @@ from services.llm_services import (
     )
 from services.output_services import clean_output
 from flask import jsonify, Blueprint
-from resources import user_data_manager
+from api.resources import user_data_manager
 from services.general_services import get_session_id
 
 # 创建蓝图

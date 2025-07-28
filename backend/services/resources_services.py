@@ -5,7 +5,6 @@ import tempfile
 from werkzeug.datastructures import FileStorage
 from flask import current_app
 import pdfplumber
-import re
 import requests
 from urllib.parse import urlparse
 from requests.exceptions import RequestException

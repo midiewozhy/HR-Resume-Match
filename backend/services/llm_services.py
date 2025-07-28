@@ -1,9 +1,9 @@
 import logging
 import json
-from general_services import get_session_id
-from feishu_services import _content_cache, _system_prompt_cache
+from services.general_services import get_session_id
+from services.feishu_services import _content_cache, _system_prompt_cache
 from api.resources import user_data_manager
-from client import llm_client
+from services.client import llm_client
 from config import Config
 import re
 import json
