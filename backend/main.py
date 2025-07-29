@@ -1,4 +1,5 @@
 from flask import Flask, send_from_directory
+from flask_cors import CORS
 from config import Config
 from services.feishu_services import start_feishu_schedule
 from multiprocessing import Process
@@ -11,6 +12,8 @@ FRONTEND_DIR = os.path.join(BASE_DIR, '../frontend')  # 前端目录路径
 
 # 创建Flask应用实例
 app = Flask(__name__, static_folder=FRONTEND_DIR)
+# 启用CORS支持
+CORS(app, origins=["http://localhost:3000"]) # 允许前端访问的域名
 
 # 将Config类中的配置加载到app.config中
 app.config.from_object(Config)
