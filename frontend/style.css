@@ -43,3 +43,56 @@
 .log-content {
     flex: 1;
 }
+/* 输出区域容器样式 */
+#outputArea {
+    width: 100%;
+    min-height: 320px; /* 对应h-80（80px*4） */
+    padding: 24px;
+    background-color: #f9fafb; /* 浅灰背景 */
+    border: 1px solid #e5e7eb; /* 淡灰边框 */
+    border-radius: 8px;
+    overflow-y: auto; /* 垂直滚动 */
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* 加载状态样式 */
+.output-loading {
+    color: #6b7280; /* 灰色文本 */
+    text-align: center;
+    padding-top: 120px; /* 垂直居中加载提示 */
+}
+
+/* 成功状态内容样式 */
+.output-success .output-item {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed #e5e7eb;
+}
+
+.output-success .output-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.output-success .output-key {
+    font-weight: 600;
+    color: #111827; /* 深灰文本 */
+}
+
+.output-success .output-value {
+    color: #4b5563; /* 中灰文本 */
+}
+
+.output-success .output-plain {
+    color: #4b5563;
+    white-space: pre-wrap; /* 保留换行和空格 */
+}
+
+/* 错误状态样式 */
+.output-error {
+    color: #dc2626; /* 红色文本 */
+    padding-top: 120px;
+    text-align: center;
+}
