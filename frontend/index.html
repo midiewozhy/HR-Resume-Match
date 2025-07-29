@@ -207,8 +207,17 @@
                 }
             })
             .catch(error => {
-                console.error('处理论文链接失败:', error);
-                addLog(error.message || '验证论文链接时出错，请重试', 'error');
+                if (error.name === 'TypeError') {
+                    // 处理网络错误（如跨域、连接失败）
+                    addLog('网络连接失败，请检查后端服务是否运行', 'error');
+                } else if (error.name === 'SyntaxError') {
+                    // 处理无效 JSON 响应
+                    addLog('服务器响应格式错误，请联系技术支持', 'error');
+                } else {
+                    // 处理其他错误
+                    addLog(error.message || '处理简历时出错，请重试', 'error');
+                }
+                console.error('处理失败:', error);
             });
         }
 
@@ -296,7 +305,7 @@
             handleResumePdf(resumePdf);
 
             // 处理论文链接
-            handlePaperUrls(paperUrl1, paperUrl2);
+            //handlePaperUrls(paperUrl1, paperUrl2);
 
         });
 
