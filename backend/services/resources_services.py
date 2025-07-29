@@ -11,6 +11,8 @@ from pdfminer.pdfparser import PDFSyntaxError
 import requests
 from urllib.parse import urlparse
 from requests.exceptions import RequestException
+from pathlib import Path
+import time
 
 # 自定义error类型
 class InvalidFileTypeError(Exception):
@@ -92,8 +94,16 @@ def save_temp_file(file: FileStorage) -> str:
 
     validate_file_type(file)
     size_valid = validate_file_size(file)  # 获取验证结果
-    
-    # 2. 二次验证：当客户端未提供content_length时，检查实际文件大小
+
+    # 2. 创建并保存临时文件
+    temp_dir = os.path.join(tempfile.gettempdir(), 'resume_system')
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file_path = os.path.join(temp_dir, f"resume_{uuid.uuid4().hex[:8]}.pdf")
+    file.save(temp_file_path)    
+
+    time.sleep(0.5)  # 确保文件系统有时间处理保存操作
+
+    # 3. 二次验证：当客户端未提供content_length时，检查实际文件大小
     if not size_valid:
         actual_size = os.path.getsize(temp_file_path)
         max_size_mb = current_app.config.get('MAX_PDF_SIZE', 10)
@@ -102,12 +112,17 @@ def save_temp_file(file: FileStorage) -> str:
         if actual_size > max_size_bytes:
             os.remove(temp_file_path)  # 删除超大文件
             raise FileTooLargeError(max_size_mb)
-    
-    # 3. 创建并保存临时文件
-    temp_dir = os.path.join(tempfile.gettempdir(), 'resume_system')
-    os.makedirs(temp_dir, exist_ok=True)
-    temp_file_path = os.path.join(temp_dir, f"resume_{uuid.uuid4()}.pdf")
-    file.save(temp_file_path)
+        
+    # 验证文件是否为有效的PDF
+    try:
+        with open(temp_file_path, 'rb') as f:
+            header = f.read(1024)
+            if b'%PDF-' not in header:
+                os.remove(temp_file_path)
+                raise Exception("保存的文件不是有效的PDF")
+    except Exception as e:
+        os.remove(temp_file_path)
+        raise e
 
     return temp_file_path
 
@@ -118,7 +133,6 @@ def read_pdf(file_path: str) -> str:
     :param file_path: 临时文件路径
     :return: 提取的文本内容（所有页合并）
     """
-
     # 基础校验： 1. 文件是否存在（防止系统自动删除等意外情况）；2. 简单检验扩展名，防止人为修改
     if not os.path.exists(file_path):
         raise PDFReadError('文件似乎飘走啦，辛苦你在上传一下哟~')
@@ -129,6 +143,7 @@ def read_pdf(file_path: str) -> str:
     # 读取pdf内容，若是有错误则输出错误信息
     try:
         # 读取pdf文字内容
+        file_path = str(Path(file_path))  # 确保路径是Path对象
         with pdfplumber.open(file_path) as pdf:
             full_text = ""
             for page in pdf.pages:
