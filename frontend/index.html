@@ -105,6 +105,35 @@
             // 开始任务提示
             addLog('开始处理候选热资料，请稍等...','info');
 
+            // 调用后端函数处理
+            fetch('http://localhost:5000/upload/pdf', {
+                method: 'POST',
+                body: formData.get('resumePdf')
+            })
+
+            // 处理响应
+            .then(response => {
+                return response.json().then(json => {
+                    if (!response.ok) {
+                        throw new Error(json.message || '上传失败');
+                    }
+                    return json;
+                });
+            })
+            .then(data => {
+                // 处理成功响应
+                addLog('简历解析成功，马上进行分析匹配~', 'success');
+                outputArea.textContent = data.resume_content || '没有提取到内容';
+            })
+            .catch(error => {
+                // 统一处理错误：记录日志 + 显示用户友好提示
+                console.error('上传失败:', error);
+                // 显示面向用户的提示（避免暴露技术细节）
+                // 显示给用户的提示（隐藏技术细节）
+                const userMessage = '上传失败，请检查文件格式或稍后再试';
+                addLog(userMessage, 'error');
+            });
+
 
         });
 
