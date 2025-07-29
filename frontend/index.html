@@ -95,7 +95,7 @@
         function handleResumePdf(resumePdf) {
             // 1. 先上传PDF文件到/upload/pdf接口
             const pdfOnlyFormData = new FormData();
-            pdfOnlyFormData.append('resumePdf', resumePdf);
+            pdfOnlyFormData.append('file', resumePdf);
 
             fetch('http://localhost:5000/api/resources/upload/pdf', {
                 method: 'POST',
@@ -130,7 +130,7 @@
                     body: JSON.stringify({
                         file_temp_path: fileTempPath  // 传递临时文件路径
                     }),
-                    crentials: 'include'  // 跨域请求时确保携带cookie等凭证
+                    credentials: 'include'  // 跨域请求时确保携带cookie等凭证
                 });
             })
             .then(response => {
