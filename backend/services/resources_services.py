@@ -5,6 +5,9 @@ import tempfile
 from werkzeug.datastructures import FileStorage
 from flask import current_app
 import pdfplumber
+from pdfplumber.utils.exceptions import PdfminerException
+from pdfminer.pdfdocument import PDFEncryptionError
+from pdfminer.pdfparser import PDFSyntaxError
 import requests
 from urllib.parse import urlparse
 from requests.exceptions import RequestException
@@ -139,10 +142,12 @@ def read_pdf(file_path: str) -> str:
         return full_text
             
         # 其他error的输出
-    except pdfplumber.PDFSyntaxError:
-        raise PDFReadError("文件已损坏或格式错误，无法解析，有可能是下载不完整哦！")
-    except pdfplumber.errors.PDFEncryptionError:
-        raise PDFReadError("文件已加密，无法读取内容，请上传未加密的PDF")
+    except PDFSyntaxError as e:
+        raise PDFReadError(f"PDF文件好像有点小脾气哦～它可能在传输中受伤了，请尝试重新下载或用其他软件打开后另存为PDF")
+    except PDFEncryptionError:
+        raise PDFReadError(f"这个PDF文件上了锁哦！请提供密码或让文件所有者分享无密码版本")
+    except PdfminerException as e:
+        raise PDFReadError(f"这个PDF文件有点特别呢～系统暂时无法解析它，请确认文件格式是否正确")
     except Exception as e:
         # 其他未知错误（隐藏技术细节）
         raise PDFReadError("解析文件时出了点小问题，请重试或换一个文件试试；如果多次有误，请联系技术同学。")
