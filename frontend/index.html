@@ -91,49 +91,212 @@
             tasklogArea.scrollTop = tasklogArea.scrollHeight;
         }
 
-        // 为“开始任务”添加点击事件
-        startBtn.addEventListener('click', function() {
-            // 获取表单数据
-            const formData = new FormData(document.getElementById('uploadForm'));
+        // 定义一个接收resumePdf的函数
+        function handleResumePdf(resumePdf) {
+            // 1. 先上传PDF文件到/upload/pdf接口
+            const pdfOnlyFormData = new FormData();
+            pdfOnlyFormData.append('resumePdf', resumePdf);
 
-            // 检查是否上传了简历PDF
-            if (!formData.has('resumePdf')) {
-                addLog('好像没有上传简历哟，请上传后重试吧~', 'error');
-                return;
-            }
-
-            // 开始任务提示
-            addLog('开始处理候选热资料，请稍等...','info');
-
-            // 调用后端函数处理
             fetch('http://localhost:5000/upload/pdf', {
                 method: 'POST',
-                body: formData.get('resumePdf')
+                body: pdfOnlyFormData,  // 直接传入FormData对象
+                credentials: 'include'  // 跨域请求时确保携带cookie等凭证
             })
-
-            // 处理响应
             .then(response => {
                 return response.json().then(json => {
                     if (!response.ok) {
-                        throw new Error(json.message || '上传失败');
+                        throw new Error(json.message || 'PDF上传失败');
+                    }
+                    return json;  // 上传成功后，后端应返回file_temp_path
+                });
+            })
+            .then(uploadData => {
+                // 2. 上传成功后，调用/extract接口提取内容
+                console.log('PDF上传成功，开始提取内容...', uploadData);
+                addLog('正在解析，请稍侯哦~', 'info');
+
+                // 从上传响应中获取临时文件路径（关键参数）
+                const fileTempPath = uploadData.file_temp_path;
+                if (!fileTempPath) {
+                    throw new Error('文件找不到了呢，请重试一下呢~');
+                }
+
+                // 3. 调用/extract接口，传入file_temp_path
+                return fetch('http://localhost:5000/extract', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'  // 发送JSON数据需指定头部
+                    },
+                    body: JSON.stringify({
+                        file_temp_path: fileTempPath  // 传递临时文件路径
+                    }),
+                    crentials: 'include'  // 跨域请求时确保携带cookie等凭证
+                });
+            })
+            .then(response => {
+                // 4. 处理/extract接口的响应
+                return response.json().then(json => {
+                    if (!response.ok) {
+                        throw new Error(json.message || '内容提取失败');
+                    }
+                    return json;  // 提取成功的完整数据（含resume_content）
+                });
+            })
+            .then(extractData => {
+                // 5. 提取内容成功，处理结果
+                console.log('内容提取成功:', extractData);
+                addLog(extractData.message || '简历内容提取完成，准备分析...', 'success');
+            })
+            .catch(error => {
+                // 统一处理所有环节的错误（上传失败/提取失败）
+                console.error('处理失败:', error);
+                addLog(error.message || '处理简历时出错，请重试', 'error');
+            });
+        }
+
+        // 定义一个接收paperUrl1和paperUrl2的函数
+        function handlePaperUrls(paperUrl1, paperUrl2) {
+            // 如果两个URL都为空，直接返回（跳过处理）
+            if (!paperUrl1 && !paperUrl2) {
+                addLog('没有论文链接哟，我们就跳过啦~', 'info');
+                return;
+            }
+            
+            // 显示处理状态
+            addLog('正在验证论文链接，请稍候...', 'info');
+            
+            // 准备数据（保持与后端字段名一致）
+            const data = {
+                paper_url_1: paperUrl1 || null,
+                paper_url_2: paperUrl2 || null
+            };
+            
+            // 发送请求到后端
+            fetch('http://localhost:5000/upload/paper_url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data),
+                credentials: 'include'  // 确保携带session cookie
+            })
+            .then(response => {
+                return response.json().then(json => {
+                    if (!response.ok) {
+                        throw new Error(json.message || '论文链接处理失败');
                     }
                     return json;
                 });
             })
-            .then(data => {
-                // 处理成功响应
-                addLog('简历解析成功，马上进行分析匹配~', 'success');
-                outputArea.textContent = data.resume_content || '没有提取到内容';
+            .then(result => {
+                // 根据后端状态码和消息更新日志
+                if (result.status === 'success') {
+                    addLog(result.message, 'success');
+                } else if (result.status === 'info') {
+                    addLog(result.message, 'info');
+                } else {
+                    addLog(result.message, 'warning');
+                }
+                
+                // 触发后续分析（如果简历和论文都已上传）
+                if (userHasUploadedResume()) {
+                    setTimeout(() => {
+                        addLog('简历与论文均已准备好，正在进行综合分析...', 'info');
+                        // 这里可以调用联合分析的接口
+                    }, 1000);
+                }
             })
             .catch(error => {
-                // 统一处理错误：记录日志 + 显示用户友好提示
-                console.error('上传失败:', error);
-                // 显示面向用户的提示（避免暴露技术细节）
-                // 显示给用户的提示（隐藏技术细节）
-                const userMessage = '上传失败，请检查文件格式或稍后再试';
-                addLog(userMessage, 'error');
+                console.error('处理论文链接失败:', error);
+                addLog(error.message || '验证论文链接时出错，请重试', 'error');
             });
+        }
 
+        // 展示输出的结果
+        function llmOutput() {
+            // 获取输出区域DOM元素
+            const outputArea = document.getElementById('outputArea');
+            if (!outputArea) {
+                console.error('未找到输出区域，请检查id是否为"outputArea"');
+                return;
+            }
+
+            // 初始化输出区域状态
+            outputArea.classList.remove('output-success', 'output-error');
+            outputArea.classList.add('output-loading');
+            outputArea.innerHTML = '正在分析内容，请稍候...';
+            addLog('开始生成分析结果...', 'info');
+
+            // 调用后端分析接口
+            fetch('http://localhost:5000/analyze', {
+                method: 'GET',
+                credentials: 'include' // 携带session信息，关联用户数据
+            })
+            .then(response => {
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        // 后端返回错误状态（如APIEmptyError）
+                        throw new Error(data.message || '分析过程出现问题，请重试');
+                    }
+                    return data;
+                });
+            })
+            .then(result => {
+                // 成功处理：移除加载状态，添加成功样式
+                outputArea.classList.remove('output-loading');
+                outputArea.classList.add('output-success');
+                
+                // 格式化分析结果（支持对象和字符串类型）
+                const analysisData = result.data;
+                let outputHtml = '';
+                
+                if (typeof analysisData === 'object' && analysisData !== null) {
+                    // 若为对象，按键值对格式化
+                    outputHtml = Object.entries(analysisData).map(([key, value]) => `
+                        <div class="output-item">
+                            <span class="output-key">${key}：</span>
+                            <span class="output-value">${value}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    // 若为字符串，直接展示
+                    outputHtml = `<div class="output-plain">${analysisData}</div>`;
+                }
+                
+                outputArea.innerHTML = outputHtml;
+                addLog('分析完成，结果已展示', 'success');
+            })
+            .catch(error => {
+                // 错误处理：移除加载状态，添加错误样式
+                outputArea.classList.remove('output-loading');
+                outputArea.classList.add('output-error');
+                outputArea.innerHTML = error.message;
+                addLog(error.message, 'error');
+            });
+        }
+        // 点击事件处理（确保传入完整的formData）
+        startBtn.addEventListener('click', function() {
+            const formData = new FormData(document.getElementById('uploadForm'));
+            
+            // 检查是否上传了简历
+            const resumeFile = formData.get('resumePdf');
+            if (!resumeFile || resumeFile.size === 0) {
+                addLog('请先上传简历文件~', 'error');
+                return;
+            }
+
+            addLog('开始处理简历，请稍等...', 'info');
+
+            // 分离数据
+            const resumePdf = formData.get('resumePdf');
+            const paperUrl1 = formData.get('paperUrl1');
+            const paperUrl2 = formData.get('paperUrl2');
+
+            // 处理简历数据
+            handleResumePdf(resumePdf);
+
+            // 处理论文链接
+            handlePaperUrls(paperUrl1, paperUrl2);
 
         });
 
