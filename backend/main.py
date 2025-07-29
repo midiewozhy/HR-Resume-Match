@@ -12,11 +12,17 @@ FRONTEND_DIR = os.path.join(BASE_DIR, '../frontend')  # 前端目录路径
 
 # 创建Flask应用实例
 app = Flask(__name__, static_folder=FRONTEND_DIR)
-# 启用CORS支持
-CORS(app, origins=["http://localhost:5501", "http://1207.0.0.1:5501"], methods=['GET','POST']) # 允许前端访问的域名
 
-# 将Config类中的配置加载到app.config中
+# 配置应用
 app.config.from_object(Config)
+
+# 启用CORS支持
+CORS(app, 
+     origins=["http://127.0.0.1:5501"],  # 仅保留实际使用的域名
+     supports_credentials=True,  # 允许携带凭证
+     methods=['GET', 'POST', 'OPTIONS'],
+     allow_headers=['Content-Type']
+)
 
 # 导入蓝图
 from api.resources import resources_bp
@@ -39,7 +45,7 @@ def start_feishu_process():
     start_feishu_schedule()
 
 if __name__ == '__main__':
-    # 创建一个新的进程来运行飞书服务调度
+    """# 创建一个新的进程来运行飞书服务调度
     feishu_process = Process(target=start_feishu_process)
     feishu_process.daemon = False  # 设置为非守护进程
     feishu_process.start()
@@ -52,6 +58,6 @@ if __name__ == '__main__':
     # 确保前端目录存在
     if not os.path.exists(FRONTEND_DIR):
         os.makedirs(FRONTEND_DIR)
-        print(f"创建前端目录: {FRONTEND_DIR}")
+        print(f"创建前端目录: {FRONTEND_DIR}")"""
 
     app.run(debug=True, port=5000)
