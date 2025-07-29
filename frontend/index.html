@@ -66,8 +66,8 @@
 
         // 定义一个addLog函数
         function addLog(message, type = 'info') {
-            const timestamp = new Date();
-            const timeString = timestamp.toLocaleTimeString();
+            //const timestamp = new Date();
+            //const timeString = timestamp.toLocaleTimeString(); 暂时没有用
             
             // 创建日志条目
             const logEntry = document.createElement('div');
@@ -113,7 +113,8 @@
             .then(uploadData => {
                 // 2. 上传成功后，调用/extract接口提取内容
                 console.log('PDF上传成功，开始提取内容...', uploadData);
-                addLog('正在解析，请稍侯哦~', 'info');
+                addLog(uploadData.message, 'success');
+                console.log(uploadData.file_temp_path);
 
                 // 从上传响应中获取临时文件路径（关键参数）
                 const fileTempPath = uploadData.file_temp_path;
