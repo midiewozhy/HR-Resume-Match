@@ -93,13 +93,7 @@ def save_temp_file(file: FileStorage) -> str:
     validate_file_type(file)
     size_valid = validate_file_size(file)  # 获取验证结果
     
-    # 2. 创建并保存临时文件
-    temp_dir = os.path.join(tempfile.gettempdir(), 'resume_system')
-    os.makedirs(temp_dir, exist_ok=True)
-    temp_file_path = os.path.join(temp_dir, f"resume_{uuid.uuid4()}.pdf")
-    file.save(temp_file_path)
-    
-    # 3. 二次验证：当客户端未提供content_length时，检查实际文件大小
+    # 2. 二次验证：当客户端未提供content_length时，检查实际文件大小
     if not size_valid:
         actual_size = os.path.getsize(temp_file_path)
         max_size_mb = current_app.config.get('MAX_PDF_SIZE', 10)
@@ -109,6 +103,12 @@ def save_temp_file(file: FileStorage) -> str:
             os.remove(temp_file_path)  # 删除超大文件
             raise FileTooLargeError(max_size_mb)
     
+    # 3. 创建并保存临时文件
+    temp_dir = os.path.join(tempfile.gettempdir(), 'resume_system')
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file_path = os.path.join(temp_dir, f"resume_{uuid.uuid4()}.pdf")
+    file.save(temp_file_path)
+
     return temp_file_path
 
 # 读取pdf内容并以文字输出(从临时文件处获取pdf)
@@ -142,11 +142,11 @@ def read_pdf(file_path: str) -> str:
         return full_text
             
         # 其他error的输出
-    except PDFSyntaxError as e:
+    except PDFSyntaxError:
         raise PDFReadError(f"PDF文件好像有点小脾气哦～它可能在传输中受伤了，请尝试重新下载或用其他软件打开后另存为PDF")
     except PDFEncryptionError:
         raise PDFReadError(f"这个PDF文件上了锁哦！请提供密码或让文件所有者分享无密码版本")
-    except PdfminerException as e:
+    except PdfminerException:
         raise PDFReadError(f"这个PDF文件有点特别呢～系统暂时无法解析它，请确认文件格式是否正确")
     except Exception as e:
         # 其他未知错误（隐藏技术细节）
