@@ -13,7 +13,7 @@ FRONTEND_DIR = os.path.join(BASE_DIR, '../frontend')  # 前端目录路径
 # 创建Flask应用实例
 app = Flask(__name__, static_folder=FRONTEND_DIR)
 # 启用CORS支持
-CORS(app, origins=["http://localhost:3000"]) # 允许前端访问的域名
+CORS(app, origins=["http://localhost:5501", "http://1207.0.0.1:5501"], methods=['GET','POST']) # 允许前端访问的域名
 
 # 将Config类中的配置加载到app.config中
 app.config.from_object(Config)
