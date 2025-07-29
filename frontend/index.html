@@ -46,54 +46,68 @@
             </div>
         </form>
 
-        <script>
-            // 创建一个全局的FormData对象
-            const formData = new FormData();
-
-            // 通用处理函数 - 处理文件和URL输入变化
-            function handleInputChange(key, element, isFile = false) {
-                return function() {
-                    // 根据是否为文件输入，获取对应的值
-                    const value = isFile ? element.files[0] : element.value;
-                    
-                    // 添加或更新FormData中的值
-                    if (value) {
-                        formData.append(key, value);
-                        console.log(`${key}:`, value);
-                        
-                        // 如果是文件，额外输出文件信息
-                        if (isFile) {
-                            console.log('文件名:', value.name);
-                            console.log('文件大小:', value.size, '字节');
-                        }
-                    } else {
-                        // 如果值为空，从FormData中删除该键（可选）
-                        formData.delete(key);
-                        console.log(`${key} 已清除`);
-                    }
-                };
-            }
-
-            // 获取DOM元素
-            const fileInput = document.getElementById('resumePdf');
-            const urlInput1 = document.getElementById('paperUrl1');
-            const urlInput2 = document.getElementById('paperUrl2');
-
-            // 为每个输入元素添加事件监听器
-            fileInput.addEventListener('change', handleInputChange('resumePdf', fileInput, true));
-            urlInput1.addEventListener('input', handleInputChange('paperUrl1', urlInput1));
-            urlInput2.addEventListener('input', handleInputChange('paperUrl2', urlInput2));
-        </script>
 
         <!-- Buttons -->
         <div class="flex space-x-6">
-            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
+            <button id="startBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
                 开始任务
             </button>
-            <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
+            <button id="resetBtn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
                 重置任务
             </button>
         </div>
     </div>
+    <script>
+        // 获取按钮元素
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const tasklogArea = document.getElementById('tasklogArea');
+        const outputArea = document.getElementById('outputArea');
+
+        // 定义一个addLog函数
+        function addLog(message, type = 'info') {
+            const timestamp = new Date();
+            const timeString = timestamp.toLocaleTimeString();
+            
+            // 创建日志条目
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            
+            // 设置图标
+            let icon = 'ℹ️';
+            switch(type) {
+                case 'error': icon = '⚠️'; break;
+                case 'success': icon = '✅'; break;
+            }
+            
+            logEntry.innerHTML = `
+                <div class="log-icon">${icon}</div>
+                <div class="log-content">${message}</div>
+            `;
+            
+            tasklogArea.appendChild(logEntry);
+            
+            // 自动滚动到底部
+            tasklogArea.scrollTop = tasklogArea.scrollHeight;
+        }
+
+        // 为“开始任务”添加点击事件
+        startBtn.addEventListener('click', function() {
+            // 获取表单数据
+            const formData = new FormData(document.getElementById('uploadForm'));
+
+            // 检查是否上传了简历PDF
+            if (!formData.has('resumePdf')) {
+                addLog('好像没有上传简历哟，请上传后重试吧~', 'error');
+                return;
+            }
+
+            // 开始任务提示
+            addLog('开始处理候选热资料，请稍等...','info');
+
+
+        });
+
+    </script>
 </body>
 </html>

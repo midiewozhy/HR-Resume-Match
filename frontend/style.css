@@ -1,0 +1,45 @@
+#tasklogArea {
+    height: 300px;
+    overflow-y: auto;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+        }
+.log-entry{
+    padding: 15px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    animation: fadeIn 0.3s ease-out;
+    display: flex;
+    align-items: flex-start;
+    line-height: 1.5;
+}
+.log-error {
+            border-left: 4px solid #e53e3e;
+        }
+        
+.log-success {
+    border-left: 4px solid #38a169;
+}
+
+.log-info {
+    border-left: 4px solid #3182ce;
+}
+
+.log-warning {
+    border-left: 4px solid #dd6b20;
+}
+.log-icon {
+            margin-right: 12px;
+            font-size: 1.2rem;
+            min-width: 24px;
+        }
+        
+.log-content {
+    flex: 1;
+}
