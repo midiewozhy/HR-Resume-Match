@@ -10,6 +10,7 @@ import requests
 from urllib.parse import urlparse
 from requests.exceptions import RequestException
 from pathlib import Path
+import mimetypes
 
 # 自定义error类型
 class InvalidFileTypeError(Exception):
@@ -61,6 +62,11 @@ def validate_file_type(file: FileStorage) -> None:
     file.stream.seek(0)  # 重置文件指针
     
     if header != b'%PDF':
+        raise InvalidFileTypeError()
+    
+    # 3. 检查MIME类型
+    mime_type, _ = mimetypes.guess_type(file.filename)
+    if mime_type != 'application/pdf':
         raise InvalidFileTypeError()
 
 # 检查文件是否过大
