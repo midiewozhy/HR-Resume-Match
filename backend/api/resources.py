@@ -132,7 +132,7 @@ def extract_pdf_content():
 
         return jsonify({
             "status": "success",
-            "message": "简历解析成功，马上进行分析匹配~",
+            "message": "简历解析成功，我们现在开始提取链接咯~",
             "resume_content": pdf_content  # 提取到的文本内容，供后续大模型调用
         }), 200
     
