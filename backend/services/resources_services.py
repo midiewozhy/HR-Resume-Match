@@ -1,6 +1,4 @@
-import magic
 import os
-import uuid  # 用于生成唯一临时文件名
 import tempfile
 from werkzeug.datastructures import FileStorage
 from flask import current_app
@@ -12,7 +10,6 @@ import requests
 from urllib.parse import urlparse
 from requests.exceptions import RequestException
 from pathlib import Path
-import time
 
 # 自定义error类型
 class InvalidFileTypeError(Exception):
@@ -28,6 +25,15 @@ class FileTooLargeError(Exception):
     def __str__(self):
         return f"我们可接收的最大文件不能超过{self.max_size_mb}MB哟"
     
+class FileSaveError(Exception):
+    """文件保存异常"""
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return f"文件保存失败: {self.message}"
+    
 class PDFReadError(Exception):
     """PDF读取异常，用来反馈不同类型的读取错误"""
     pass
@@ -42,87 +48,79 @@ class URLUnreachableError(Exception):
     def __str__(self):
         return "链接无法访问，可能已过期或不存在啦~"
     
-# 辅助函数：生成临时文件路径（独立于save_temp_file，解决循环依赖）
-def _create_temp_path():
-    """生成临时文件路径（仅创建路径，不保存文件内容）"""
-    temp_dir = os.path.join(tempfile.gettempdir(), 'resume_system')
-    os.makedirs(temp_dir, exist_ok=True)  # 确保临时目录存在
-    # 使用UUID生成唯一文件名，避免冲突
-    unique_filename = f"resume_temp_{uuid.uuid4()}.pdf"
-    return os.path.join(temp_dir, unique_filename)
-
-# 验证文件类型（不依赖save_temp_file，解决循环依赖）
-def validate_file_type(file):
-    """验证文件是否为PDF类型（双重验证：扩展名+文件内容）"""
+# 验证文件类型
+def validate_file_type(file: FileStorage) -> None:
+    """验证文件是否为PDF类型（无需保存临时文件）"""
     # 1. 检查文件扩展名（快速筛选）
     if not file.filename.lower().endswith('.pdf'):
         raise InvalidFileTypeError()
     
-    # 2. 检查文件内容（通过MIME类型，更安全）
-    temp_path = _create_temp_path()  # 使用独立函数生成路径
-    try:
-        file.save(temp_path)  # 临时保存文件到路径
-        # 读取文件MIME类型（需要python-magic库）
-        file_type = magic.from_file(temp_path, mime=True)
-        if file_type != 'application/pdf':
-            raise InvalidFileTypeError()
-    finally:
-        # 无论验证成功与否，都删除临时文件
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    # 2. 检查文件前几个字节（魔数）来验证PDF格式
+    # PDF文件的前4个字节是'%PDF'
+    header = file.stream.read(4)
+    file.stream.seek(0)  # 重置文件指针
+    
+    if header != b'%PDF':
+        raise InvalidFileTypeError()
 
 # 检查文件是否过大
-def validate_file_size(file):
-    """验证文件大小是否超过限制"""
-    # 从配置中获取最大文件大小（单位：MB）
-    max_size_mb = current_app.config.get('MAX_PDF_SIZE', 10)  # 默认10MB
+def validate_file_size(file: FileStorage) -> None:
+    """验证文件大小是否超过限制，必要时流式计算大小"""
+    max_size_mb = current_app.config.get('MAX_PDF_SIZE', 10)
     max_size_bytes = max_size_mb * 1024 * 1024
     
-    # 检查文件大小
-    if file.content_length is None:
-        return False
+    # 优先使用content_length属性（如果存在）
+    if file.content_length is not None:
+        if file.content_length > max_size_bytes:
+            raise FileTooLargeError(max_size_mb)
+        return
     
-    if file.content_length > max_size_bytes:
-        raise FileTooLargeError(max_size_mb)
-    return True
+    # 如果content_length不可用，则流式计算文件大小
+    # 注意：这会读取整个文件内容到内存，谨慎使用
+    total_size = 0
+    chunk_size = 4096
+    
+    try:
+        while chunk := file.stream.read(chunk_size):
+            total_size += len(chunk)
+            if total_size > max_size_bytes:
+                file.stream.close()  # 关闭流以释放资源
+                raise FileTooLargeError(max_size_mb)
+        
+        # 重置文件指针，以便后续处理
+        file.stream.seek(0)
+    except Exception as e:
+        # 确保流被关闭
+        file.stream.close()
+        raise FileSaveError(f"验证文件大小时出错: {str(e)}") from e
 
 # 保存临时文件
 def save_temp_file(file: FileStorage) -> str:
     """保存文件到临时目录（增强大小验证）"""
     # 1. 验证文件类型和大小（如果需要）
-    size_valid = True  # 初始化默认值
-
     validate_file_type(file)
-    size_valid = validate_file_size(file)  # 获取验证结果
+    validate_file_size(file)  # 获取验证结果
 
     # 2. 创建并保存临时文件
     temp_dir = os.path.join(tempfile.gettempdir(), 'resume_system')
     os.makedirs(temp_dir, exist_ok=True)
-    temp_file_path = os.path.join(temp_dir, f"resume_{uuid.uuid4().hex[:8]}.pdf")
-    file.save(temp_file_path)    
 
-    time.sleep(0.5)  # 确保文件系统有时间处理保存操作
-
-    # 3. 二次验证：当客户端未提供content_length时，检查实际文件大小
-    if not size_valid:
-        actual_size = os.path.getsize(temp_file_path)
-        max_size_mb = current_app.config.get('MAX_PDF_SIZE', 10)
-        max_size_bytes = max_size_mb * 1024 * 1024
+    # 使用tempfile.NamedTemporaryFile创建安全的临时文件
+    with tempfile.NamedTemporaryFile(
+        mode='wb',
+        dir=temp_dir,
+        prefix='resume_',
+        suffix='.pdf',
+        delete=False
+    ) as temp_file:
+        temp_file_path = temp_file.name
         
-        if actual_size > max_size_bytes:
-            os.remove(temp_file_path)  # 删除超大文件
-            raise FileTooLargeError(max_size_mb)
-        
-    # 验证文件是否为有效的PDF
-    try:
-        with open(temp_file_path, 'rb') as f:
-            header = f.read(1024)
-            if b'%PDF-' not in header:
-                os.remove(temp_file_path)
-                raise Exception("保存的文件不是有效的PDF")
-    except Exception as e:
-        os.remove(temp_file_path)
-        raise e
+        # 分块写入文件，避免大文件占用过多内存
+        chunk_size = 4096
+        with file.stream as stream:
+            stream.seek(0)
+            while chunk := stream.read(chunk_size):
+                temp_file.write(chunk) 
 
     return temp_file_path
 

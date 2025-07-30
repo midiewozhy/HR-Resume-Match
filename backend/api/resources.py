@@ -6,6 +6,7 @@ from services.resources_services import (
     validate_paper_url,
     InvalidFileTypeError,  # Service层定义的自定义异常
     FileTooLargeError,
+    FileSaveError,
     PDFReadError,
     InvalidURLError,
     URLUnreachableError,
@@ -14,6 +15,8 @@ import logging
 import os
 from services.general_services import get_session_id
 from services.user_data_manager import UserDataManager
+import uuid
+import tempfile
 
 # 创建数据储存类
 user_data_manager = UserDataManager()
@@ -71,6 +74,15 @@ def upload_pdf() -> tuple[dict,int]:
             "status": "fail",
             "message": f"文件有点大哦，{str(e)}~ 可以试试压缩后再上传~"  # 提供解决方案
         }), 400
+    
+    # 捕获“临时文件保存错误”
+    except FileSaveError as e:
+        logging.error(str(e), exc_info=True)
+        # 这里不暴露技术细节，给出安抚信息
+        return jsonify({
+            "status": "fail",
+            "message": f"上传后验证文件出错啦，请重试一下吧~ 若多次失败可以联系技术同学哦~"  # 包含错误详情，便于排查
+        }), 500
     
     # 捕获其他未知错误
     except Exception as e:
