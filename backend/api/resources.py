@@ -223,6 +223,6 @@ def upload_paper_url():
         count = len(valid_urls)
         return jsonify({
             "status": "success",
-            "message": f"{count}个论文链接已收到，正在准备解析~ ",
+            "message": f"{count}个论文链接已收到，并且处理成功啦！",
             "paper_urls": valid_urls # 供后续调用的URL列表
         }), 200
