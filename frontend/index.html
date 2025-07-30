@@ -146,7 +146,7 @@
             .then(extractData => {
                 // 5. 提取内容成功，处理结果
                 console.log('内容提取成功:', extractData);
-                addLog(extractData.message || '简历内容提取完成，准备分析...', 'success');
+                addLog(extractData.message || '简历内容提取完成，现在开始提取链接~', 'success');
             })
             .catch(error => {
                 // 统一处理所有环节的错误（上传失败/提取失败）
@@ -303,10 +303,14 @@
             const paperUrl2 = formData.get('paperUrl2');
 
             // 处理简历数据
-            handleResumePdf(resumePdf);
+            if (handleResumePdf(resumePdf)){
+                // 如果简历成功处理，则开始处理链接
+                handlePaperUrls(paperUrl1, paperUrl2);}
+            else {
+                return;
+            }
 
-            // 处理论文链接
-            //handlePaperUrls(paperUrl1, paperUrl2);
+            
 
         });
 
