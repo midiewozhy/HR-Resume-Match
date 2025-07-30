@@ -1,58 +1,89 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Task Website</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历匹配系统</title>
+    <!-- 引入Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            content: ["./*.html"],
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        success: '#10b981',
+                        danger: '#ef4444',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen text-xl">
-    <div class="bg-white p-12 rounded-xl shadow-lg w-[600px] space-y-10">
-        <h2 class="text-2xl font-bold text-blue-700 mb-6 text-center">简历匹配</h2>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex items-center justify-center p-4">
+    <!-- 主容器（使用原生Tailwind类） -->
+    <div class="bg-white p-6 md:p-10 rounded-xl max-w-4xl w-full mx-4 card-shadow">
+        <!-- 标题 -->
+        <h2 class="text-2xl md:text-3xl font-bold text-primary mb-6 text-center">简历匹配系统</h2>
         
-        <!-- Output & Tasklog Area (side by side) -->
-        <div class="flex space-x-12 w-full text-xl">
+        <!-- 输出与日志区域 -->
+        <div class="flex flex-col md:flex-row gap-6 w-full">
             <div class="flex-1">
-                <label class="block text-gray-700 mb-3 text-xl">结果</label>
-                <div id="outputArea" class="bg-gray-50 border rounded-lg p-10 h-80 overflow-auto w-full"></div>
+                <label class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                    分析结果
+                    <span class="flex-1 h-px bg-gray-200 ml-3"></span>
+                </label>
+                <div id="outputArea" class="bg-gray-50 border border-gray-200 rounded-lg p-4 h-72 md:h-80 overflow-auto">
+                    <div class="text-gray-500 italic">请上传简历并点击"开始任务"，分析结果将显示在这里</div>
+                </div>
             </div>
             <div class="flex-1">
-                <label class="block text-gray-700 mb-3 text-xl">进程</label>
-                <div id="tasklogArea" class="bg-gray-50 border rounded-lg p-10 h-80 overflow-auto w-full"></div>
+                <label class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                    处理日志
+                    <span class="flex-1 h-px bg-gray-200 ml-3"></span>
+                </label>
+                <div id="tasklogArea" class="bg-gray-50 border border-gray-200 rounded-lg p-4 h-72 md:h-80 overflow-auto">
+                    <div class="text-gray-500 italic">系统操作日志将显示在这里...</div>
+                </div>
             </div>
         </div>
         
-        <!-- PDF Upload Area with icon and instruction -->
-        <form id="uploadForm">
+        <!-- 表单 -->
+        <form id="uploadForm" class="space-y-6">
             <div>
-                <label class="block text-gray-700 mb-3 text-xl">简历上传</label>
-                <div class="flex items-center space-x-5 bg-gray-50 border rounded-lg p-5">
-                    <!-- PDF Icon (Heroicons) -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <label for="resumePdf" class="text-base font-medium text-gray-700 mb-2 block">简历上传</label>
+                <div class="flex flex-col md:flex-row gap-4 p-5 bg-gray-50 border border-gray-200 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-4m0 0V8m0 4h4m-4 0H8m8 4v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v7a2 2 0 01-2 2h-1"/>
                     </svg>
                     <div class="flex-1">
-                        <p class="text-gray-600 text-lg mb-2">请上传PDF文件</p>
-                        <input id="resumePdf" name="resumePdf" type="file" accept="application/pdf" class="block w-full text-gray-700 border rounded-lg p-4 text-lg"/>
+                        <p class="text-gray-500 text-sm">支持PDF格式，大小不超过10MB</p>
+                        <input id="resumePdf" name="resumePdf" type="file" accept="application/pdf" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
                     </div>
                 </div>
             </div>
             
-            <!-- Paper URLs Upload Area -->
             <div>
-                <label class="block text-gray-700 mb-2 text-xl">论文1</label>
-                <input id="paperUrl1" type="url" placeholder="第一篇论文（可选）" class="block w-full border rounded-lg p-4 mb-4 text-lg"/>
-                <label class="block text-gray-700 mb-2 text-xl">论文2</label>
-                <input id="paperUrl2" type="url" placeholder="第二篇论文（可选）" class="block w-full border rounded-lg p-4 text-lg"/>
+                <label for="paperUrl1" class="text-base font-medium text-gray-700 mb-2 block">论文链接1（可选）</label>
+                <input id="paperUrl1" name="paperUrl1" type="url" placeholder="例如：https://arxiv.org/abs/xxx" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent transition-all mb-4" />
+                
+                <label for="paperUrl2" class="text-base font-medium text-gray-700 mb-2 block">论文链接2（可选）</label>
+                <input id="paperUrl2" name="paperUrl2" type="url" placeholder="例如：https://github.com/xxx" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
             </div>
         </form>
-
-
-        <!-- Buttons -->
-        <div class="flex space-x-6">
-            <button id="startBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
+        
+        <!-- 按钮区域 -->
+        <div class="flex flex-wrap gap-4 pt-2">
+            <button id="startBtn" class="font-medium py-3 px-6 rounded-lg text-base bg-primary text-white hover:bg-primary/90 hover:shadow-md active:scale-95 transition-all duration-200">
                 开始任务
             </button>
-            <button id="resetBtn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition">
+            <button id="resetBtn" class="font-medium py-3 px-6 rounded-lg text-base bg-gray-600 text-white hover:bg-gray-700 hover:shadow-md active:scale-95 transition-all duration-200">
                 重置任务
             </button>
         </div>
@@ -93,6 +124,8 @@
 
         // 定义一个接收resumePdf的函数
         function handleResumePdf(resumePdf) {
+            // 返回一个promise
+            return new Promise((resolve) => {
             // 1. 先上传PDF文件到/upload/pdf接口
             const pdfOnlyFormData = new FormData();
             pdfOnlyFormData.append('file', resumePdf);
@@ -147,22 +180,27 @@
                 // 5. 提取内容成功，处理结果
                 console.log('内容提取成功:', extractData);
                 addLog(extractData.message || '简历内容提取完成，现在开始提取链接~', 'success');
-                return true;  // 返回true表示简历处理成功
+                resolve(true);  // 返回true表示简历处理成功
             })
             .catch(error => {
                 // 统一处理所有环节的错误（上传失败/提取失败）
                 console.error('处理失败:', error);
                 addLog(error.message || '处理简历时出错，请重试', 'error');
-                return false;  // 返回false表示简历处理失败
+                resolve(false);  // 返回false表示简历处理失败
             });
+        });
         }
 
         // 定义一个接收paperUrl1和paperUrl2的函数
         function handlePaperUrls(paperUrl1, paperUrl2) {
+            // 返回一个promise
+            return new Promise((resolve) => {
             // 如果两个URL都为空，直接返回（跳过处理）
+            console.log('处理论文链接:', paperUrl1, paperUrl2);
             if (!paperUrl1 && !paperUrl2) {
                 addLog('没有论文链接哟，我们就跳过啦~', 'info');
-                return true;
+                resolve(true);  // 返回true表示链接处理成功
+                return;
             }
             
             // 显示处理状态
@@ -201,14 +239,8 @@
                     addLog(result.message, 'warning');
                 }
                 
-                // 触发后续分析（如果简历和论文都已上传）
-                if (userHasUploadedResume()) {
-                    setTimeout(() => {
-                        addLog('简历与论文均已准备好，正在进行综合分析...', 'info');
-                        // 这里可以调用联合分析的接口
-                    }, 1000);
-                }
-                return true;  // 返回true表示链接处理成功
+                console.log('论文链接处理结果:', result);
+                resolve(true);  // 返回true表示链接处理成功
             })
             .catch(error => {
                 if (error.name === 'TypeError') {
@@ -222,8 +254,9 @@
                     addLog(error.message || '处理简历时出错，请重试', 'error');
                 }
                 console.error('处理失败:', error);
-                return false;  // 返回false表示链接处理失败
+                resolve(false);  // 返回false表示链接处理失败
             });
+        });
         }
 
         // 展示输出的结果
@@ -305,14 +338,23 @@
             const resumePdf = formData.get('resumePdf');
             const paperUrl1 = formData.get('paperUrl1');
             const paperUrl2 = formData.get('paperUrl2');
+            console.log('上传的简历文件:', paperUrl1, paperUrl2);
 
             // 处理简历数据
             const resumeProcessed = await handleResumePdf(resumePdf);
             if (!resumeProcessed) {
                 addLog('简历处理失败，请重试', 'error');
                 return;
+            }
+
+            // 简历成功后，再处理论文链接
+            const urlsProcessed = await handlePaperUrls(paperUrl1, paperUrl2);
+            if (urlsProcessed) {
+                addLog('所有输入处理成功了，准备生成结果...', 'success');
+                // 这里可以继续调用 llmOutput()
             } else {
-                const urlsProcessed = await handlePaperUrls(paperUrl1, paperUrl2);
+                addLog('论文链接处理失败', 'error');
+                return
             }
 
         });

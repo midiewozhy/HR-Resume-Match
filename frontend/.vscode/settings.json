@@ -1,0 +1,17 @@
+{
+  "files.associations": {
+    "*.css": "postcss"
+  },
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "tailwindCSS.includeLanguages": {
+    "postcss": "css"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    "tw`([^`]*)`",
+    "tw\\.([^`]*)`",
+    "tw\\(([^)]*)\\)",
+    "twApply\\(\"([^\"]*)\"\\)"
+  ]
+}
