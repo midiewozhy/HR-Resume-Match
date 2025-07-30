@@ -171,7 +171,17 @@ def get_system_prompt(pre_score_content: str, tag_content: str, paper_score_cont
     ### 输出强制要求（必须严格执行）  
     - 直接输出 JSON，**不加任何前缀/后缀/解释文字**（如“结果如下：”）。  
     - 字段：`cdd_score`（必选，float）、`job_match_1`（无匹配填“无适合岗位推荐”）、`job_match_1_contact`（无则 null）、`reason_1`（无则 null）、`job_match_2`（无则 null）、`job_match_2_contact`（无则 null）、`reason_2`（无则 null）。  
-     - 无岗位时完整输出示例：
+    - 有岗位时完整输出示例：
+    {{
+        "cdd_score": 3.5,
+        "job_match_1": LLM-Posttrain ,
+        "job_match_1_contact": 严林,
+        "reason_1": 候选人主要研究方向涉及后训练优化与数据精炼,
+        "job_match_2": 前沿研究（Edge）-持续学习（continual learning）,
+        "job_match_2_contact": 蔡天乐,
+        "reason_2": 候选人有些文章涉及“可塑性-稳定性”平衡与表示分解
+    }}
+    - 无岗位时完整输出示例：
     {{
         "cdd_score": 2.5,
         "job_match_1": "无适合岗位推荐",
