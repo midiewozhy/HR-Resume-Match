@@ -275,7 +275,7 @@
             addLog('开始生成分析结果...', 'info');
 
             // 调用后端分析接口
-            fetch('http://localhost:5000/analyze', {
+            fetch('http://localhost:5000//api/output/analyze', {
                 method: 'GET',
                 credentials: 'include' // 携带session信息，关联用户数据
             })
@@ -351,14 +351,13 @@
             const urlsProcessed = await handlePaperUrls(paperUrl1, paperUrl2);
             if (urlsProcessed) {
                 addLog('所有输入处理成功了，准备生成结果...', 'success');
-                // 这里可以继续调用 llmOutput()
+                llmOutput();  // 调用输出函数
             } else {
                 addLog('论文链接处理失败', 'error');
                 return
             }
 
         });
-
     </script>
 </body>
 </html>

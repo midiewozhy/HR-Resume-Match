@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from werkzeug.utils import secure_filename
 from services.resources_services import (
     save_temp_file, 
@@ -101,7 +101,10 @@ def extract_pdf_content():
 
     # 1. 获取唯一session_id以作为数据存储的查询一句
     session_id = get_session_id()
+    #logging.info(f"开始提取简历内容 | session_id: {session_id}")
     user_data_manager.initialize_user_data(session_id)
+    #print("Session data:", dict(session))  # 查看session内容
+    #print("Request cookies:", request.cookies)  # 查看传入cookies
 
     # 2. 获取请求中的JSON数据
     data = request.get_json()
@@ -132,7 +135,7 @@ def extract_pdf_content():
 
         return jsonify({
             "status": "success",
-            "message": "简历解析成功，我们现在开始提取链接咯~",
+            "message": f"简历解析成功，我们现在开始提取链接咯~...",
             "resume_content": pdf_content  # 提取到的文本内容，供后续大模型调用
         }), 200
     
@@ -161,26 +164,24 @@ def upload_paper_url():
     """
     可选任务：处理HR上传的论文链接
     """
-
-    # 1.  获取唯一的session_id作为后续数据保存的查询标识，并初始化数据结构
+    # 1. 获取唯一session_id以作为数据存储的查询一句
     session_id = get_session_id()
-    user_data_manager.initialize_user_data(session_id)
 
-    # 2. 获取请求中的接送数据
+    # 1. 获取请求中的接送数据
     data = request.get_json()
 
-    # 3. 基础校验：data是否为空
+    # 2. 基础校验：data是否为空
     if not data:
         return jsonify({
             "status": "fail",
             "message": "似乎没有上传信息呢，请上传后重试吧~"
         }), 400
     
-    # 4. 获取url
+    # 3. 获取url
     url_fields = ['paper_url_1','paper_url_2']
     paper_urls = [data.get(field) for field in url_fields if data.get(field)]
     
-    # 5. 若未提供任何URL，返回提示
+    # 4. 若未提供任何URL，返回提示
 
     if not paper_urls:
         user_data_manager.set_user_data(session_id, {"paper_urls": []})
@@ -190,7 +191,7 @@ def upload_paper_url():
             "paper_urls": []
         }), 204  # 204表示无内容，但请求成功
     
-    # 6. 验证每个url的有效性
+    # 5. 验证每个url的有效性
     valid_urls = []
     error_messages = []
     for idx, url in enumerate(paper_urls, 1):
@@ -206,7 +207,7 @@ def upload_paper_url():
             logging.error(f"第{idx}个论文URL处理失败: {str(e)}")
             error_messages.append(f"第{idx}个链接处理时出了点小问题，请重试~")
 
-    # 7. 处理验证结果
+    # 6. 处理验证结果
     if error_messages:
         # 保存数据
         user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})        
@@ -223,6 +224,6 @@ def upload_paper_url():
         count = len(valid_urls)
         return jsonify({
             "status": "success",
-            "message": f"{count}个论文链接已收到，并且处理成功啦！",
+            "message": f"{count}个论文链接已收到，并且处理成功啦！{session_id}",
             "paper_urls": valid_urls # 供后续调用的URL列表
         }), 200
