@@ -4,9 +4,9 @@ from services.general_services import get_session_id
 from services.feishu_services import _content_cache, _system_prompt_cache
 from api.resources import user_data_manager
 from services.client import llm_client
-from config import Config
 import re
 import json
+from flask import current_app
 
 # 静态数据
 # 获取飞书文档内容
@@ -61,7 +61,7 @@ def analyze_candidate():
 
     # 3. 调用大模型
     completion = llm_client.chat.completions.create(
-        model=Config.BOT_ID,
+        model=current_app.config.get('BOT_ID'),
         messages=whole_prompt,
         temperature=0,
         seed=42,

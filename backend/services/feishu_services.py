@@ -9,7 +9,7 @@ from threading import Lock
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
-from config import Config
+from flask import current_app
 
 # 初始化调度器
 scheduler = BackgroundScheduler()
@@ -68,7 +68,7 @@ def get_access_token():
     headers = {"Content-Type": "application/json; charset=utf-8"}
 
     # 构建请求体
-    payload = {"app_id": Config.APP_ID, "app_secret": Config.APP_SECRET}
+    payload = {"app_id": current_app.config.get('APP_ID'), "app_secret": current_app.config.get('APP_SECRET')}
 
     try:
         # 发送POST请求
@@ -298,9 +298,9 @@ def start_feishu_schedule():
         return
     
     # 2. 启动文档更新（1分钟后首次自动执行）
-    schedule_doc_content(Config.PRE_SCORE_TOKEN, 'pre', interval_hours=2)
-    schedule_doc_content(Config.PAPER_SCORE_TOKEN, 'paper', interval_hours=2)
-    schedule_doc_content(Config.TAG_DOC_TOKEN, 'tag', interval_hours=2)
+    schedule_doc_content(current_app.config.get('PRE_SCORE_TOKEN'), 'pre', interval_hours=2)
+    schedule_doc_content(current_app.config.get('PAPER_SCORE_TOKEN'), 'paper', interval_hours=2)
+    schedule_doc_content(current_app.config.get('TAG_DOC_TOKEN'), 'tag', interval_hours=2)
     
     # 3. 启动prompt更新（2分钟后首次自动执行）
     schedule_prompt_update(interval_hours=0.5)
