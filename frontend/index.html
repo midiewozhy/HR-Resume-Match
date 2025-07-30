@@ -147,13 +147,13 @@
                 // 5. 提取内容成功，处理结果
                 console.log('内容提取成功:', extractData);
                 addLog(extractData.message || '简历内容提取完成，现在开始提取链接~', 'success');
-                resolve(true);  // 返回true表示简历处理成功
+                return true;  // 返回true表示简历处理成功
             })
             .catch(error => {
                 // 统一处理所有环节的错误（上传失败/提取失败）
                 console.error('处理失败:', error);
                 addLog(error.message || '处理简历时出错，请重试', 'error');
-                resolve(false);  // 返回false表示简历处理失败
+                return false;  // 返回false表示简历处理失败
             });
         }
 
@@ -162,8 +162,7 @@
             // 如果两个URL都为空，直接返回（跳过处理）
             if (!paperUrl1 && !paperUrl2) {
                 addLog('没有论文链接哟，我们就跳过啦~', 'info');
-                resolve(true);
-                return;
+                return true;
             }
             
             // 显示处理状态
@@ -209,7 +208,7 @@
                         // 这里可以调用联合分析的接口
                     }, 1000);
                 }
-                resolve(true);  // 返回true表示链接处理成功
+                return true;  // 返回true表示链接处理成功
             })
             .catch(error => {
                 if (error.name === 'TypeError') {
@@ -223,7 +222,7 @@
                     addLog(error.message || '处理简历时出错，请重试', 'error');
                 }
                 console.error('处理失败:', error);
-                resolve(false);  // 返回false表示链接处理失败
+                return false;  // 返回false表示链接处理失败
             });
         }
 
