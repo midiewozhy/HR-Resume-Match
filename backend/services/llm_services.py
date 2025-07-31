@@ -46,12 +46,12 @@ def construct_prompt(user_prompt: list):
     whole_prompt = system_prompt + user_prompt
     return whole_prompt
 
-def analyze_candidate():
+def analyze_candidate(user_data: dict):
     """分析候选人，内部实时获取动态数据，复用静态数据"""
     # 1. 实时获取当前请求的动态数据（依赖session_id，每次请求可能不同）
     #session_id = get_session_id()  # 实时获取当前会话ID
     #user_data = user_data_manager.get_user_data(session_id)
-    user_data = session.get('user_data', {})
+    #user_data = session.get('user_data', {})
     resume = user_data["resume"]  # 当前会话的简历
     pdf_urls = user_data["pdf_urls"]# 当前会话的论文链接
 

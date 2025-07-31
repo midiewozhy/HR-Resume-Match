@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, logging
 from werkzeug.utils import secure_filename
 from services.resources_services import (
     save_temp_file, 
@@ -139,6 +139,9 @@ def extract_pdf_content():
         #user_data_manager.set_user_data(session_id,{"resume": pdf_content})
         set_user_data("resume", pdf_content)
 
+        # 立即验证是否保存成功
+        #logging.info(f"Session after save: {session['user_data']}")
+
         return jsonify({
             "status": "success",
             "message": f"简历解析成功，我们现在开始提取链接咯~... ",
@@ -230,6 +233,8 @@ def upload_paper_url():
         # 所有URL均有效
         #user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})
         set_user_data("paper_urls", valid_urls)
+        #a = session.get('user_data', {})
+        #logging.info(f"{a}")  # 调试输出
 
         count = len(valid_urls)
         return jsonify({

@@ -5,7 +5,7 @@ from services.llm_services import (
     )
 from services.output_services import clean_output
 from services.resources_services import initialize_user_data
-from flask import jsonify, Blueprint
+from flask import jsonify, Blueprint, session
 #from api.resources import user_data_manager
 #from services.general_services import get_session_id
 
@@ -16,7 +16,9 @@ output_bp = Blueprint('output', __name__, url_prefix='/api/output')
 def analyze_cdd_output():
     # 分析候选人及输出的接口函数
     try:
-        result = analyze_candidate()
+        user_data = session.get('user_data', {})
+        print(f"Received user data for analysis: {user_data}")  # 调试输出
+        result = analyze_candidate(user_data)
         # 无错误时清理数据
         cleaned_result = clean_output(result)
         
