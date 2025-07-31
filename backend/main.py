@@ -49,7 +49,7 @@ def start_feishu_process():
     start_feishu_schedule()
 
 if __name__ == '__main__':
-    """# 创建一个新的进程来运行飞书服务调度
+    # 创建一个新的进程来运行飞书服务调度
     feishu_process = Process(target=start_feishu_process)
     feishu_process.daemon = False  # 设置为非守护进程
     feishu_process.start()
@@ -62,6 +62,6 @@ if __name__ == '__main__':
     # 确保前端目录存在
     if not os.path.exists(FRONTEND_DIR):
         os.makedirs(FRONTEND_DIR)
-        print(f"创建前端目录: {FRONTEND_DIR}")"""
+        print(f"创建前端目录: {FRONTEND_DIR}")
 
     app.run(debug=True, port=5000)

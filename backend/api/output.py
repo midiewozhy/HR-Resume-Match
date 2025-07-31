@@ -16,9 +16,10 @@ output_bp = Blueprint('output', __name__, url_prefix='/api/output')
 def analyze_cdd_output():
     # 分析候选人及输出的接口函数
     try:
-        user_data = session.get('user_data', {})
-        print(f"Received user data for analysis: {user_data}")  # 调试输出
-        result = analyze_candidate(user_data)
+        resume = session['resume']
+        pdf_urls = session['pdf_urls']
+        print(f"Received resume for analysis: {resume[:50]}...")  # 调试输出，截断长文本
+        result = analyze_candidate(resume, pdf_urls)
         # 无错误时清理数据
         cleaned_result = clean_output(result)
         
@@ -30,18 +31,16 @@ def analyze_cdd_output():
     except APIEmptyError as e:
         return jsonify({
             "status": "fail",
-            "message": e
+            "message": str(e)
         }), 503
     except LLMContentEmptyError as e:
         return jsonify({
             "status": "fail",
-            "message": e
+            "message": str(e)
         }), 500
 
 @output_bp.route('/start_new_analysis', methods=['POST'])
 def start_new_analysis():
-    # 获取session_id
-    #session_id = get_session_id()
     
     # 重置用户数据
     initialize_user_data()

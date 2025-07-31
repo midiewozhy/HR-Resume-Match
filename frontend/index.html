@@ -95,6 +95,36 @@
         const tasklogArea = document.getElementById('tasklogArea');
         const outputArea = document.getElementById('outputArea');
 
+        function saveLogsToStorage() {
+            const logEntries = Array.from(tasklogArea.querySelectorAll('.log-entry'))
+                .map(entry => ({
+                    message: entry.querySelector('.log-content').textContent,
+                    type: entry.className.split(' ').find(cls => cls.startsWith('log-'))?.replace('log-', '') || 'info'
+                }));
+            
+            localStorage.setItem('taskLogs', JSON.stringify(logEntries));
+        }
+
+        // 从localStorage恢复日志
+        function loadLogsFromStorage() {
+            const savedLogs = localStorage.getItem('taskLogs');
+            if (savedLogs) {
+                try {
+                    const logs = JSON.parse(savedLogs);
+                    logs.forEach(log => addLog(log.message, log.type));
+                } catch (e) {
+                    console.error('Failed to load logs from storage', e);
+                    localStorage.removeItem('taskLogs'); // 清除损坏的日志数据
+                }
+            }
+        }
+
+        // 清空日志（用于重置按钮）
+        function clearLogs() {
+            tasklogArea.innerHTML = '';
+            localStorage.removeItem('taskLogs');
+        }
+
         // 定义一个addLog函数
         function addLog(message, type = 'info') {
             //const timestamp = new Date();
@@ -120,6 +150,8 @@
             
             // 自动滚动到底部
             tasklogArea.scrollTop = tasklogArea.scrollHeight;
+        
+            saveLogsToStorage();
         }
 
         // 定义一个接收resumePdf的函数
@@ -262,6 +294,7 @@
         // 展示输出的结果
         function llmOutput() {
             // 获取输出区域DOM元素
+            console.log('开始生成分析结果...');
             const outputArea = document.getElementById('outputArea');
             if (!outputArea) {
                 console.error('未找到输出区域，请检查id是否为"outputArea"');
@@ -275,7 +308,7 @@
             addLog('开始生成分析结果...', 'info');
 
             // 调用后端分析接口
-            fetch('http://localhost:5000//api/output/analyze', {
+            fetch('http://localhost:5000/api/output/analyze', {
                 method: 'GET',
                 credentials: 'include' // 携带session信息，关联用户数据
             })
@@ -285,6 +318,7 @@
                         // 后端返回错误状态（如APIEmptyError）
                         throw new Error(data.message || '分析过程出现问题，请重试');
                     }
+                    console.log('分析成功:', data);
                     return data;
                 });
             })
@@ -321,6 +355,10 @@
                 addLog(error.message, 'error');
             });
         }
+
+        // 页面加载时恢复日志
+        window.addEventListener('load', loadLogsFromStorage);
+
         // 点击事件处理（确保传入完整的formData）
         startBtn.addEventListener('click', async function() {
             const formData = new FormData(document.getElementById('uploadForm'));
@@ -354,8 +392,10 @@
                 llmOutput();  // 调用输出函数
             } else {
                 addLog('论文链接处理失败', 'error');
-                return
+                return;
             }
+
+
 
         });
     </script>
