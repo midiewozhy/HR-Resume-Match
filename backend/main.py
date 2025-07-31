@@ -1,5 +1,6 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+from flask_session import Session
 from config import Config
 from services.feishu_services import start_feishu_schedule
 from multiprocessing import Process
@@ -15,6 +16,9 @@ app = Flask(__name__, static_folder=FRONTEND_DIR)
 
 # 配置应用
 app.config.from_object(Config)
+# 初始化Session（如果配置了SESSION_TYPE）
+if app.config.get('SESSION_TYPE'):
+    Session(app)  # 初始化服务器端session存储
 
 # 启用CORS支持
 CORS(app, 

@@ -4,6 +4,9 @@ from services.resources_services import (
     save_temp_file, 
     read_pdf,
     validate_paper_url,
+    initialize_user_data,
+    get_user_data,
+    set_user_data,
     InvalidFileTypeError,  # Service层定义的自定义异常
     FileTooLargeError,
     FileSaveError,
@@ -13,13 +16,11 @@ from services.resources_services import (
 )
 import logging
 import os
-from services.general_services import get_session_id
-from services.user_data_manager import UserDataManager
+#from services.general_services import get_session_id
+#from services.user_data_manager import UserDataManager
 import uuid
 import tempfile
 
-# 创建数据储存类
-user_data_manager = UserDataManager()
 
 resources_bp = Blueprint('resources', __name__, url_prefix='/api/resources')
 
@@ -52,6 +53,7 @@ def upload_pdf() -> tuple[dict,int]:
     try:
         # 4. 保存临时文件（调用Service层）
         temp_path = save_temp_file(file)
+        #initialize_user_data()  # 初始化用户数据，清空之前的内容
         
         # 5. 上传成功，返回友好提示
         return jsonify({
@@ -100,11 +102,14 @@ def extract_pdf_content():
     """
 
     # 1. 获取唯一session_id以作为数据存储的查询一句
-    session_id = get_session_id()
+    #session_id = get_session_id()
     #logging.info(f"开始提取简历内容 | session_id: {session_id}")
-    user_data_manager.initialize_user_data(session_id)
+    #user_data_manager.initialize_user_data(session_id)
     #print("Session data:", dict(session))  # 查看session内容
     #print("Request cookies:", request.cookies)  # 查看传入cookies
+
+    # 初始化用户数据
+    initialize_user_data()
 
     # 2. 获取请求中的JSON数据
     data = request.get_json()
@@ -131,11 +136,12 @@ def extract_pdf_content():
 
         # 5. 提取成功，保存内容并返回内容
         os.remove(temp_path)  # 解析完就删，避免占用磁盘
-        user_data_manager.set_user_data(session_id,{"resume": pdf_content})
+        #user_data_manager.set_user_data(session_id,{"resume": pdf_content})
+        set_user_data("resume", pdf_content)
 
         return jsonify({
             "status": "success",
-            "message": f"简历解析成功，我们现在开始提取链接咯~...",
+            "message": f"简历解析成功，我们现在开始提取链接咯~... ",
             "resume_content": pdf_content  # 提取到的文本内容，供后续大模型调用
         }), 200
     
@@ -165,7 +171,7 @@ def upload_paper_url():
     可选任务：处理HR上传的论文链接
     """
     # 1. 获取唯一session_id以作为数据存储的查询一句
-    session_id = get_session_id()
+    #session_id = get_session_id()
 
     # 1. 获取请求中的接送数据
     data = request.get_json()
@@ -184,10 +190,11 @@ def upload_paper_url():
     # 4. 若未提供任何URL，返回提示
 
     if not paper_urls:
-        user_data_manager.set_user_data(session_id, {"paper_urls": []})
+        #user_data_manager.set_user_data(session_id, {"paper_urls": []})
+        set_user_data("paper_urls", [])
         return jsonify({
             "status": "info",
-            "message": "未检测到论文URL呢~ 我们会仅基于简历进行分析匹配~",
+            "message": f"未检测到论文URL呢~ 我们会仅基于简历进行分析匹配~",
             "paper_urls": []
         }), 204  # 204表示无内容，但请求成功
     
@@ -210,7 +217,9 @@ def upload_paper_url():
     # 6. 处理验证结果
     if error_messages:
         # 保存数据
-        user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})        
+        #user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})  
+        set_user_data("paper_urls", valid_urls)
+
         # 存在无效URL时，返回错误信息（保留有效URL，便于用户修正）
         return jsonify({
             "status": "fail",
@@ -219,11 +228,12 @@ def upload_paper_url():
         }), 400
     else:
         # 所有URL均有效
-        user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})
-        
+        #user_data_manager.set_user_data(session_id,{"paper_urls": valid_urls})
+        set_user_data("paper_urls", valid_urls)
+
         count = len(valid_urls)
         return jsonify({
             "status": "success",
-            "message": f"{count}个论文链接已收到，并且处理成功啦！{session_id}",
+            "message": f"{count}个论文链接已收到，并且处理成功啦!",
             "paper_urls": valid_urls # 供后续调用的URL列表
         }), 200

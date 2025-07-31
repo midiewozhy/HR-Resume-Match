@@ -4,9 +4,10 @@ from services.llm_services import (
     LLMContentEmptyError,
     )
 from services.output_services import clean_output
+from services.resources_services import initialize_user_data
 from flask import jsonify, Blueprint
-from api.resources import user_data_manager
-from services.general_services import get_session_id
+#from api.resources import user_data_manager
+#from services.general_services import get_session_id
 
 # 创建蓝图
 output_bp = Blueprint('output', __name__, url_prefix='/api/output')
@@ -38,10 +39,10 @@ def analyze_cdd_output():
 @output_bp.route('/start_new_analysis', methods=['POST'])
 def start_new_analysis():
     # 获取session_id
-    session_id = get_session_id()
+    #session_id = get_session_id()
     
     # 重置用户数据
-    user_data_manager.initialize_user_data(session_id)
+    initialize_user_data()
     
     return jsonify({
         "status": "success",

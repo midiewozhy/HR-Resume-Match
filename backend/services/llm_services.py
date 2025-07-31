@@ -2,11 +2,11 @@ import logging
 import json
 from services.general_services import get_session_id
 from services.feishu_services import _content_cache, _system_prompt_cache
-from api.resources import user_data_manager
+#from api.resources import user_data_manager
 from services.client import llm_client
 import re
 import json
-from flask import current_app
+from flask import current_app, session
 
 # 静态数据
 # 获取飞书文档内容
@@ -49,15 +49,16 @@ def construct_prompt(user_prompt: list):
 def analyze_candidate():
     """分析候选人，内部实时获取动态数据，复用静态数据"""
     # 1. 实时获取当前请求的动态数据（依赖session_id，每次请求可能不同）
-    session_id = get_session_id()  # 实时获取当前会话ID
-    user_data = user_data_manager.get_user_data(session_id)
+    #session_id = get_session_id()  # 实时获取当前会话ID
+    #user_data = user_data_manager.get_user_data(session_id)
+    user_data = session.get('user_data', {})
     resume = user_data["resume"]  # 当前会话的简历
     pdf_urls = user_data["pdf_urls"]# 当前会话的论文链接
 
     # 2. 构造prompt（复用静态数据和动态数据）
     user_prompt = get_user_prompt(resume, pdf_urls)  # 传入动态数据，内部引用静态数据
     whole_prompt = construct_prompt(user_prompt)  # 内部引用静态的system_prompt
-    logging.info(f"收到候选人分析请求 | session_id: {session_id} | prompt: {whole_prompt}")
+    #logging.info(f"收到候选人分析请求 | session_id: {session_id} | prompt: {whole_prompt}")
 
     # 3. 调用大模型
     completion = llm_client.chat.completions.create(

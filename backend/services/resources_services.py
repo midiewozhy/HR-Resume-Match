@@ -1,7 +1,7 @@
 import os
 import tempfile
 from werkzeug.datastructures import FileStorage
-from flask import current_app
+from flask import current_app, session
 import pdfplumber
 from pdfplumber.utils.exceptions import PdfminerException
 from pdfminer.pdfdocument import PDFEncryptionError
@@ -194,3 +194,28 @@ def validate_paper_url(url: str) -> None:
             raise URLUnreachableError(f"链接访问失败啦！错误代码：{response.status_code} 请确认链接是否正确~")
     except RequestException as e:
         raise URLUnreachableError("网络开小差了~ 请检查链接是否有效，或者稍后再试哦~ ")
+    
+# 数据管理
+def initialize_user_data() -> None:
+    """初始化用户数据，清空当前会话的用户数据"""
+    session.setdefault('user_data', {})
+    # 必须显式标记修改
+    session.modified = True
+
+def get_user_data() -> dict:
+    """获取用户数据"""
+    return session.get('user_data', {})
+
+def set_user_data(key: str, value: any) -> None:
+    """
+    设置用户数据
+    :param key: 数据键
+    :param value: 数据值
+    """
+    # 正确更新嵌套字典的方式
+    user_data = session.get('user_data', {})
+    user_data[key] = value
+    
+    # 必须重新赋值并标记修改
+    session['user_data'] = user_data
+    session.modified = True
