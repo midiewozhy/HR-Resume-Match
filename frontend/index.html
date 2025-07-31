@@ -243,6 +243,7 @@
                 paper_url_1: paperUrl1 || null,
                 paper_url_2: paperUrl2 || null
             };
+            console.log('准备发送的论文链接数据:', data);
             
             // 发送请求到后端
             fetch('http://localhost:5000/api/resources/upload/paper_url', {
@@ -277,10 +278,10 @@
             .catch(error => {
                 if (error.name === 'TypeError') {
                     // 处理网络错误（如跨域、连接失败）
-                    addLog('网络连接失败，请检查后端服务是否运行', 'error');
+                    addLog(error.message, 'error');
                 } else if (error.name === 'SyntaxError') {
                     // 处理无效 JSON 响应
-                    addLog('服务器响应格式错误，请联系技术支持', 'error');
+                    addLog(error.message, 'error');
                 } else {
                     // 处理其他错误
                     addLog(error.message || '处理简历时出错，请重试', 'error');

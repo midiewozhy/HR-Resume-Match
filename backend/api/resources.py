@@ -154,69 +154,71 @@ def extract_pdf_content():
             "message": "提取内容时出了点小问题，请重试~"
         }), 500
     
-@resources_bp.route('/upload/paper_url', methods = ['POST'])
+@resources_bp.route('/upload/paper_url', methods=['POST'])
 def upload_paper_url():
     """
     可选任务：处理HR上传的论文链接
     """
+    try:
+        # 1. 获取请求中的JSON数据
+        data = request.get_json()
 
-    # 1. 获取请求中的接送数据
-    data = request.get_json()
+        # 2. 基础校验：data是否为空
+        if not data:
+            return jsonify({
+                "status": "fail",
+                "message": "似乎没有上传信息呢，请上传后重试吧~",
+                "paper_urls": []
+            }), 400
+        
+        # 3. 获取url
+        url_fields = ['paper_url_1','paper_url_2']
+        paper_urls = [data.get(field) for field in url_fields if data.get(field)]
+        
+        # 4. 若未提供任何URL，返回提示（修正状态码为200）
+        if not paper_urls:
+            session['pdf_urls'] = []  # 清空之前的URL
+            return jsonify({
+                "status": "info",
+                "message": "未检测到论文URL呢~ 我们会仅基于简历进行分析匹配~",
+                "paper_urls": []
+            }), 200  # 关键修改：200允许返回JSON
+        
+        # 5. 验证每个url的有效性
+        valid_urls = []
+        error_messages = []
+        for idx, url in enumerate(paper_urls, 1):
+            try:
+                validate_paper_url(url)  # 调用Service层验证函数
+                valid_urls.append(url)
+            except InvalidURLError as e:
+                error_messages.append(f"第{idx}个{str(e)}")
+            except URLUnreachableError as e:
+                error_messages.append(f"第{idx}个{str(e)}")
+            except Exception as e:
+                logging.error(f"第{idx}个论文URL处理失败: {str(e)}")
+                error_messages.append(f"第{idx}个链接处理时出了点小问题，请重试~")
 
-    # 2. 基础校验：data是否为空
-    if not data:
+        # 6. 处理验证结果
+        if error_messages:
+            session['pdf_urls'] = valid_urls
+            return jsonify({
+                "status": "fail",
+                "message": "；".join(error_messages),
+                "paper_urls": valid_urls
+            }), 400
+        else:
+            session['pdf_urls'] = valid_urls
+            count = len(valid_urls)
+            return jsonify({
+                "status": "success",
+                "message": f"{count}个论文链接已收到，并且处理成功啦! ",
+                "paper_urls": valid_urls
+            }), 200
+    except Exception as e:
+        logging.error(f"处理论文URL时发生未预期错误: {str(e)}")
         return jsonify({
             "status": "fail",
-            "message": "似乎没有上传信息呢，请上传后重试吧~"
-        }), 400
-    
-    # 3. 获取url
-    url_fields = ['paper_url_1','paper_url_2']
-    paper_urls = [data.get(field) for field in url_fields if data.get(field)]
-    
-    # 4. 若未提供任何URL，返回提示
-
-    if not paper_urls:
-        set_user_data("paper_urls", [])
-        return jsonify({
-            "status": "info",
-            "message": f"未检测到论文URL呢~ 我们会仅基于简历进行分析匹配~",
+            "message": f"处理论文URL时发生错误，请重试: {str(e)}",
             "paper_urls": []
-        }), 204  # 204表示无内容，但请求成功
-    
-    # 5. 验证每个url的有效性
-    valid_urls = []
-    error_messages = []
-    for idx, url in enumerate(paper_urls, 1):
-        try:
-            validate_paper_url(url)  # 调用Service层验证函数
-            # 简化URL显示（超长截断）
-            valid_urls.append(url)
-        except InvalidURLError as e:
-            error_messages.append(f"第{idx}个{str(e)}")
-        except URLUnreachableError as e:
-            error_messages.append(f"第{idx}个{str(e)}")
-        except Exception as e:
-            logging.error(f"第{idx}个论文URL处理失败: {str(e)}")
-            error_messages.append(f"第{idx}个链接处理时出了点小问题，请重试~")
-
-    # 6. 处理验证结果
-    if error_messages:
-        session['pdf_urls'] = valid_urls
-
-        # 存在无效URL时，返回错误信息（保留有效URL，便于用户修正）
-        return jsonify({
-            "status": "fail",
-            "message": "；".join(error_messages),
-            "paper_urls": valid_urls  # 返回有效的URL
-        }), 400
-    else:
-        # 所有URL均有效
-        session['pdf_urls'] = valid_urls
-
-        count = len(valid_urls)
-        return jsonify({
-            "status": "success",
-            "message": f"{count}个论文链接已收到，并且处理成功啦! ",
-            "paper_urls": valid_urls # 供后续调用的URL列表
-        }), 200
+        }), 500
