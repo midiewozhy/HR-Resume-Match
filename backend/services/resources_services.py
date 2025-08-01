@@ -1,7 +1,7 @@
 import os
 import tempfile
 from werkzeug.datastructures import FileStorage
-from flask import current_app, session
+from flask import current_app
 import pdfplumber
 from pdfplumber.utils.exceptions import PdfminerException
 from pdfminer.pdfdocument import PDFEncryptionError
@@ -195,27 +195,29 @@ def validate_paper_url(url: str) -> None:
     except RequestException as e:
         raise URLUnreachableError("网络开小差了~ 请检查链接是否有效，或者稍后再试哦~ ")
     
-# 数据管理
-def initialize_user_data() -> None:
-    """初始化用户数据，清空当前会话的用户数据"""
-    session.setdefault('user_data', {})
-    # 必须显式标记修改
-    session.modified = True
-
-def get_user_data() -> dict:
-    """获取用户数据"""
-    return session.get('user_data', {})
-
-def set_user_data(key: str, value: any) -> None:
-    """
-    设置用户数据
-    :param key: 数据键
-    :param value: 数据值
-    """
-    # 正确更新嵌套字典的方式
-    user_data = session.get('user_data', {})
-    user_data[key] = value
+# pdf文件的基础验证函数
+def validate_resume_pdf_file(file: FileStorage) -> str:
+    try:
+        # 4. 保存临时文件（调用Service层）
+        temp_path = save_temp_file(file)
+        #initialize_user_data()  # 初始化用户数据，清空之前的内容
+        
+        # 5. 上传成功，返回友好提示
+        return temp_path
     
-    # 必须重新赋值并标记修改
-    session['user_data'] = user_data
-    session.modified = True
+    # 捕获“文件类型错误”
+    except InvalidFileTypeError:
+        raise InvalidFileTypeError()
+    
+    # 捕获“文件过大”
+    except FileTooLargeError:
+        raise FileTooLargeError(10)
+    
+    # 捕获“临时文件保存错误”
+    except FileSaveError as e:
+        raise FileSaveError(str(e))
+    
+    # 捕获其他未知错误
+    except Exception as e:
+        # 未知错误时，避免技术细节，给安抚信息
+        raise Exception(f"上传文件时出了点小问题，请重试或联系技术同学。错误信息：{str(e)}")

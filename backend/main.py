@@ -16,25 +16,24 @@ app = Flask(__name__, static_folder=FRONTEND_DIR)
 
 # 配置应用
 app.config.from_object(Config)
-# 初始化Session（如果配置了SESSION_TYPE）
-if app.config.get('SESSION_TYPE'):
-    Session(app)  # 初始化服务器端session存储
+
+# 初始化Session
+#Session(app)  # 初始化服务器端session存储
 
 # 启用CORS支持
 CORS(app, 
      origins=["http://127.0.0.1:5501"],  # 仅保留实际使用的域名
      supports_credentials=True,  # 允许携带凭证
      methods=['GET', 'POST', 'OPTIONS'],
-     allow_headers=['Content-Type']
+     expose_headers=['Set-Cookie'],  # 允许前端访问Set-Cookie头
+     allow_headers=['Set-Cookie', 'Content-Type']
 )
 
 # 导入蓝图
 from api.resources import resources_bp
-from api.output import output_bp
 
 # 注册蓝图
 app.register_blueprint(resources_bp)
-app.register_blueprint(output_bp)
 
 # 添加服务前端文件的路由
 @app.route('/')

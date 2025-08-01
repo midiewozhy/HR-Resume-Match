@@ -351,3 +351,8 @@ def start_feishu_schedule():
         logging.warning("核心文档缓存未就绪，跳过首次prompt构建，等待定时任务更新")
     
     logging.info("飞书服务启动完成，调度任务已运行")
+
+# 访问函数
+def get_system_prompt_cache():
+    with _update_prompt_lock:  # 确保读取时与更新操作互斥
+        return _system_prompt_cache.copy()  # 返回副本，避免外部修改

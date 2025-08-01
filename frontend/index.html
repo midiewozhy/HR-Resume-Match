@@ -155,213 +155,41 @@
         }
 
         // 定义一个接收resumePdf的函数
-        function handleResumePdf(resumePdf) {
-            // 返回一个promise
-            return new Promise((resolve) => {
-            // 1. 先上传PDF文件到/upload/pdf接口
-            const pdfOnlyFormData = new FormData();
-            pdfOnlyFormData.append('file', resumePdf);
-
-            fetch('http://localhost:5000/api/resources/upload/pdf', {
-                method: 'POST',
-                body: pdfOnlyFormData,  // 直接传入FormData对象
-                credentials: 'include'  // 跨域请求时确保携带cookie等凭证
-            })
-            .then(response => {
-                return response.json().then(json => {
-                    if (!response.ok) {
-                        throw new Error(json.message || 'PDF上传失败');
-                    }
-                    return json;  // 上传成功后，后端应返回file_temp_path
-                });
-            })
-            .then(uploadData => {
-                // 2. 上传成功后，调用/extract接口提取内容
-                console.log('PDF上传成功，开始提取内容...', uploadData);
-                addLog(uploadData.message, 'success');
-                console.log(uploadData.file_temp_path);
-
-                // 从上传响应中获取临时文件路径（关键参数）
-                const fileTempPath = uploadData.file_temp_path;
-                if (!fileTempPath) {
-                    throw new Error('文件找不到了呢，请重试一下呢~');
+        function cdd_analysis(formData){
+                if (!formData.get('paperUrl1') && !formData.get('paperUrl2')) {
+                    addLog('没有论文链接的话，我们就跳过咯~', 'info');
                 }
-
-                // 3. 调用/extract接口，传入file_temp_path
-                return fetch('http://localhost:5000/api/resources/extract', {
+                addLog('开始进行简历分析...', 'info');
+                fetch('http://localhost:5000/api/llm/cdd/analysis', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'  // 发送JSON数据需指定头部
-                    },
-                    body: JSON.stringify({
-                        file_temp_path: fileTempPath  // 传递临时文件路径
-                    }),
-                    credentials: 'include'  // 跨域请求时确保携带cookie等凭证
-                });
-            })
-            .then(response => {
-                // 4. 处理/extract接口的响应
-                return response.json().then(json => {
+                    body: formData,
+                    credentials: 'include'
+                })
+                .then(response => {
                     if (!response.ok) {
-                        throw new Error(json.message || '内容提取失败');
+                        throw new Error;
                     }
-                    return json;  // 提取成功的完整数据（含resume_content）
+                    return response.json();
+                })
+                .then(result =>{
+                    if (result.status === 'success') {
+                        addLog('简历分析完成！', 'success');
+                        outputArea.innerHTML = `<pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+                    } else {
+                        addLog(`分析失败：请重试一下吧`, 'error');
+                    }
+                })
+                .catch(error => {
+                    addLog(`分析过程中发生错误：${error.message}`, 'error');
                 });
-            })
-            .then(extractData => {
-                // 5. 提取内容成功，处理结果
-                console.log('内容提取成功:', extractData);
-                addLog(extractData.message || '简历内容提取完成，现在开始提取链接~', 'success');
-                resolve(true);  // 返回true表示简历处理成功
-            })
-            .catch(error => {
-                // 统一处理所有环节的错误（上传失败/提取失败）
-                console.error('处理失败:', error);
-                addLog(error.message || '处理简历时出错，请重试', 'error');
-                resolve(false);  // 返回false表示简历处理失败
-            });
-        });
-        }
-
-        // 定义一个接收paperUrl1和paperUrl2的函数
-        function handlePaperUrls(paperUrl1, paperUrl2) {
-            // 返回一个promise
-            return new Promise((resolve) => {
-            // 如果两个URL都为空，直接返回（跳过处理）
-            console.log('处理论文链接:', paperUrl1, paperUrl2);
-            if (!paperUrl1 && !paperUrl2) {
-                addLog('没有论文链接哟，我们就跳过啦~', 'info');
-                resolve(true);  // 返回true表示链接处理成功
-                return;
-            }
-            
-            // 显示处理状态
-            addLog('正在验证论文链接，请稍候...', 'info');
-            
-            // 准备数据（保持与后端字段名一致）
-            const data = {
-                paper_url_1: paperUrl1 || null,
-                paper_url_2: paperUrl2 || null
             };
-            console.log('准备发送的论文链接数据:', data);
-            
-            // 发送请求到后端
-            fetch('http://localhost:5000/api/resources/upload/paper_url', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data),
-                credentials: 'include'  // 确保携带session cookie
-            })
-            .then(response => {
-                return response.json().then(json => {
-                    if (!response.ok) {
-                        throw new Error(json.message || '论文链接处理失败');
-                    }
-                    return json;
-                });
-            })
-            .then(result => {
-                // 根据后端状态码和消息更新日志
-                if (result.status === 'success') {
-                    addLog(result.message, 'success');
-                } else if (result.status === 'info') {
-                    addLog(result.message, 'info');
-                } else {
-                    addLog(result.message, 'warning');
-                }
-                
-                console.log('论文链接处理结果:', result);
-                resolve(true);  // 返回true表示链接处理成功
-            })
-            .catch(error => {
-                if (error.name === 'TypeError') {
-                    // 处理网络错误（如跨域、连接失败）
-                    addLog(error.message, 'error');
-                } else if (error.name === 'SyntaxError') {
-                    // 处理无效 JSON 响应
-                    addLog(error.message, 'error');
-                } else {
-                    // 处理其他错误
-                    addLog(error.message || '处理简历时出错，请重试', 'error');
-                }
-                console.error('处理失败:', error);
-                resolve(false);  // 返回false表示链接处理失败
-            });
-        });
-        }
-
-        // 展示输出的结果
-        function llmOutput() {
-            // 获取输出区域DOM元素
-            console.log('开始生成分析结果...');
-            const outputArea = document.getElementById('outputArea');
-            if (!outputArea) {
-                console.error('未找到输出区域，请检查id是否为"outputArea"');
-                return;
-            }
-
-            // 初始化输出区域状态
-            outputArea.classList.remove('output-success', 'output-error');
-            outputArea.classList.add('output-loading');
-            outputArea.innerHTML = '正在分析内容，请稍候...';
-            addLog('开始生成分析结果...', 'info');
-
-            // 调用后端分析接口
-            fetch('http://localhost:5000/api/output/analyze', {
-                method: 'GET',
-                credentials: 'include' // 携带session信息，关联用户数据
-            })
-            .then(response => {
-                return response.json().then(data => {
-                    if (!response.ok) {
-                        // 后端返回错误状态（如APIEmptyError）
-                        throw new Error(data.message || '分析过程出现问题，请重试');
-                    }
-                    console.log('分析成功:', data);
-                    return data;
-                });
-            })
-            .then(result => {
-                // 成功处理：移除加载状态，添加成功样式
-                outputArea.classList.remove('output-loading');
-                outputArea.classList.add('output-success');
-                
-                // 格式化分析结果（支持对象和字符串类型）
-                const analysisData = result.data;
-                let outputHtml = '';
-                
-                if (typeof analysisData === 'object' && analysisData !== null) {
-                    // 若为对象，按键值对格式化
-                    outputHtml = Object.entries(analysisData).map(([key, value]) => `
-                        <div class="output-item">
-                            <span class="output-key">${key}：</span>
-                            <span class="output-value">${value}</span>
-                        </div>
-                    `).join('');
-                } else {
-                    // 若为字符串，直接展示
-                    outputHtml = `<div class="output-plain">${analysisData}</div>`;
-                }
-                
-                outputArea.innerHTML = outputHtml;
-                addLog('分析完成，结果已展示', 'success');
-            })
-            .catch(error => {
-                // 错误处理：移除加载状态，添加错误样式
-                outputArea.classList.remove('output-loading');
-                outputArea.classList.add('output-error');
-                outputArea.innerHTML = error.message;
-                addLog(error.message, 'error');
-            });
-        }
 
         // 页面加载时恢复日志
-        window.addEventListener('load', loadLogsFromStorage);
+        //window.addEventListener('load', loadLogsFromStorage);
 
         // 点击事件处理（确保传入完整的formData）
         startBtn.addEventListener('click', async function() {
+            clearLogs(); // 清空日志区域
             const formData = new FormData(document.getElementById('uploadForm'));
             
             // 检查是否上传了简历
@@ -371,33 +199,15 @@
                 return;
             }
 
-            addLog('开始处理简历，请稍等...', 'info');
+            addLog('正在处理数据，请稍等...', 'info');
+            cdd_analysis(formData);
+        });
 
-            // 分离数据
-            const resumePdf = formData.get('resumePdf');
-            const paperUrl1 = formData.get('paperUrl1');
-            const paperUrl2 = formData.get('paperUrl2');
-            console.log('上传的简历文件:', paperUrl1, paperUrl2);
-
-            // 处理简历数据
-            const resumeProcessed = await handleResumePdf(resumePdf);
-            if (!resumeProcessed) {
-                addLog('简历处理失败，请重试', 'error');
-                return;
-            }
-
-            // 简历成功后，再处理论文链接
-            const urlsProcessed = await handlePaperUrls(paperUrl1, paperUrl2);
-            if (urlsProcessed) {
-                addLog('所有输入处理成功了，准备生成结果...', 'success');
-                llmOutput();  // 调用输出函数
-            } else {
-                addLog('论文链接处理失败', 'error');
-                return;
-            }
-
-
-
+        // 重置按钮点击事件
+        resetBtn.addEventListener('click', function() {
+            clearLogs(); // 清空日志区域
+            outputArea.innerHTML = '<div class="text-gray-500 italic">请上传简历并点击"开始任务"，分析结果将显示在这里</div>';
+            document.getElementById('uploadForm').reset(); // 重置表单
         });
     </script>
 </body>
