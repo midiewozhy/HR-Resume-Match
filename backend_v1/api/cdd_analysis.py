@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify, logging
-from werkzeug.utils import secure_filename
-from services.resources_services import (
+from backend_v1.services.input_services import (
     validate_resume_pdf_file,
     read_pdf,
     validate_paper_url,
@@ -11,7 +10,8 @@ from services.resources_services import (
     InvalidURLError,
     URLUnreachableError,
 )
-from services.llm_services import analyze_candidate, LLMContentEmptyError
+from backend_v1.services.analysis_services import analyze_candidate, LLMContentEmptyError, APIEmptyError
+from services.output_services import clean_output
 import logging
 import os
 
@@ -124,10 +124,11 @@ def llm_cdd_analysis() -> tuple[dict,int]:
         analysis_result = analyze_candidate(resume_content, paper_urls)
         if not analysis_result:
             raise LLMContentEmptyError("大模型返回的内容为空，请稍后再试~")
+        result = clean_output(analysis_result)  # 清理输出格式
         return jsonify({
             "status": "success",
             "message": "简历分析成功！",
-            "data": analysis_result,
+            "data": result,
         }), 200
     except LLMContentEmptyError as e:
         logging.error(f"大模型分析失败: {str(e)}", exc_info=True)
@@ -135,6 +136,12 @@ def llm_cdd_analysis() -> tuple[dict,int]:
             "status": "fail",
             "message": str(e)
         }), 500
+    except APIEmptyError as e:
+        logging.error(f"API返回内容为空: {str(e)}", exc_info=True)
+        return jsonify({
+            "status": "fail",
+            "message": str(e)
+        }), 503
     except Exception as e:
         logging.error(f"大模型分析时发生错误: {str(e)}", exc_info=True)
         return jsonify({

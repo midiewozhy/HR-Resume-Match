@@ -1,7 +1,7 @@
 import logging
 import json
 from services.feishu_services import get_system_prompt_cache
-from services.client import llm_client
+from backend_v1.services.client_services import llm_client
 import re
 import json
 from config import Config
@@ -40,7 +40,7 @@ def get_user_prompt(resume: str, pdf_urls: list):
     return user_prompt
 
 def construct_prompt(user_prompt: list):
-    system_prompt = get_system_prompt_cache()
+    system_prompt = get_system_prompt_cache() # 获取静态的system prompt
     whole_prompt = system_prompt + user_prompt
     return whole_prompt
 

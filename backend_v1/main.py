@@ -30,7 +30,7 @@ CORS(app,
 )
 
 # 导入蓝图
-from api.resources import resources_bp
+from backend_v1.api.cdd_analysis import resources_bp
 
 # 注册蓝图
 app.register_blueprint(resources_bp)

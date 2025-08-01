@@ -17,7 +17,6 @@ scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 # 从resources获取相应数据
-
 # 缓存与锁机制
 _token_cache = None
 _content_cache = {
@@ -31,7 +30,7 @@ _content_hash_cache = {
     "_paper_content_hash": "",
     "_tag_content_hash": ""
 }
-_system_prompt_cache = [{"role": "system", "content": ""}]
+_system_prompt_cache ={"value":[{"role": "system", "content": ""}]}
 _cache_lock = Lock()
 
 # 新增：文档更新标记（记录哪些文档需要更新prompt）
@@ -220,12 +219,15 @@ def update_system_prompt():
     
     # 重建prompt
     with _update_prompt_lock:
-        _system_prompt_cache = get_system_prompt(
+        new_prompt = get_system_prompt(
             _content_cache["_pre_content_cache"],
             _content_cache["_tag_content_cache"],
             _content_cache["_paper_content_cache"]
         )
-    logging.info(f"重建的prompt如下：{_system_prompt_cache}")
+
+        _system_prompt_cache["value"] = new_prompt  # 更新缓存
+
+    logging.info(f"重建的prompt如下：{_system_prompt_cache['value']}")
     
     # 重置更新标记
     with _update_doc_lock:
@@ -343,7 +345,7 @@ def start_feishu_schedule():
         update_system_prompt()
         # 检查prompt是否成功更新
         with _update_prompt_lock:
-            if _system_prompt_cache and _system_prompt_cache[0]["content"].strip():
+            if _system_prompt_cache and _system_prompt_cache['value'][0]["content"].strip():
                 logging.info("首次prompt构建成功")
             else:
                 logging.warning("首次prompt构建失败，内容为空")
@@ -353,6 +355,17 @@ def start_feishu_schedule():
     logging.info("飞书服务启动完成，调度任务已运行")
 
 # 访问函数
-def get_system_prompt_cache():
+"""def get_system_prompt_cache():
     with _update_prompt_lock:  # 确保读取时与更新操作互斥
-        return _system_prompt_cache.copy()  # 返回副本，避免外部修改
+        print(_system_prompt_cache["value"])
+        return _system_prompt_cache["value"].copy()  # 返回副本，避免外部修改"""
+# 修改 get_system_prompt_cache()
+def get_system_prompt_cache():
+    """获取当前系统prompt，确保返回有效值"""
+    with _update_prompt_lock:
+        # 检查prompt是否有效
+        if not _system_prompt_cache["value"] or not _system_prompt_cache["value"][0]["content"].strip():
+            print("系统prompt为空，尝试立即更新")
+            update_system_prompt()  # 尝试立即更新
+            
+        return _system_prompt_cache["value"].copy()  # 返回副本
