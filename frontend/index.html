@@ -154,6 +154,47 @@
             saveLogsToStorage();
         }
 
+        // 格式化输出结果，使其与日志风格一致
+        function formatResult(data) {
+            // 定义要展示的字段及其标签，按指定顺序排列
+            const fields = [
+                { key: 'cdd_score', label: 'CDD评分' },
+                { key: 'job_match_1', label: '推荐岗位1' },
+                { key: 'job_match_1_contact', label: '岗位1联系方式' },
+                { key: 'reason_1', label: '推荐理由1' },
+                { key: 'job_match_2', label: '推荐岗位2' },
+                { key: 'job_match_2_contact', label: '岗位2联系方式' },
+                { key: 'reason_2', label: '推荐理由2' }
+            ];
+            
+            // 创建结果容器
+            const resultContainer = document.createElement('div');
+            resultContainer.className = 'analysis-result';
+            
+            // 添加标题
+            const title = document.createElement('div');
+            title.className = 'result-title log-entry log-info';
+            title.innerHTML = `
+                <div class="log-icon">📊</div>
+                <div class="log-content">分析结果</div>
+            `;
+            resultContainer.appendChild(title);
+            
+            // 按顺序添加各个字段
+            fields.forEach(field => {
+                const value = data[field.key] !== null ? data[field.key] : '无';
+                const fieldElement = document.createElement('div');
+                fieldElement.className = 'result-field log-entry log-info';
+                fieldElement.innerHTML = `
+                    <div class="log-icon">•</div>
+                    <div class="log-content"><strong>${field.label}:</strong> ${value}</div>
+                `;
+                resultContainer.appendChild(fieldElement);
+            });
+            
+            return resultContainer;
+        }
+
         // 定义一个接收resumePdf的函数
         function cdd_analysis(formData){
                 if (!formData.get('paperUrl1') && !formData.get('paperUrl2')) {
@@ -174,7 +215,8 @@
                 .then(result =>{
                     if (result.status === 'success') {
                         addLog('简历分析完成！', 'success');
-                        outputArea.innerHTML = `<pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+                        outputArea.innerHTML = '';
+                        outputArea.appendChild(formatResult(result.data));
                     } else {
                         addLog(`分析失败：请重试一下吧`, 'error');
                     }

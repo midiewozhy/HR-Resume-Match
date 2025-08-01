@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, logging
-from backend_v1.services.input_services import (
+from services.input_services import (
     validate_resume_pdf_file,
     read_pdf,
     validate_paper_url,
@@ -10,16 +10,16 @@ from backend_v1.services.input_services import (
     InvalidURLError,
     URLUnreachableError,
 )
-from backend_v1.services.analysis_services import analyze_candidate, LLMContentEmptyError, APIEmptyError
+from services.analysis_services import analyze_candidate, LLMContentEmptyError, APIEmptyError
 from services.output_services import clean_output
 import logging
 import os
 
 
-resources_bp = Blueprint('resources', __name__, url_prefix='/api')
+analysis_bp = Blueprint('resources', __name__, url_prefix='/api')
 
 
-@resources_bp.route('/llm/cdd/analysis', methods=['POST'])
+@analysis_bp.route('/llm/cdd/analysis', methods=['POST'])
 def llm_cdd_analysis() -> tuple[dict,int]:
     """
     这是HR上传简历的接口函数，如果文件接收成功，会返回成功信息；若失败，则会返回错误类型。
@@ -27,6 +27,7 @@ def llm_cdd_analysis() -> tuple[dict,int]:
     # 初始化一些数据，防止为空
     resume_content = ""
     paper_urls = []
+    analysis_result = ""
 
     # 1. 检查前端代码是否有误
     if 'resumePdf' not in request.files:
@@ -124,11 +125,11 @@ def llm_cdd_analysis() -> tuple[dict,int]:
         analysis_result = analyze_candidate(resume_content, paper_urls)
         if not analysis_result:
             raise LLMContentEmptyError("大模型返回的内容为空，请稍后再试~")
-        result = clean_output(analysis_result)  # 清理输出格式
+        #result = clean_output(analysis_result)  # 清理输出格式
         return jsonify({
             "status": "success",
             "message": "简历分析成功！",
-            "data": result,
+            "data": analysis_result,
         }), 200
     except LLMContentEmptyError as e:
         logging.error(f"大模型分析失败: {str(e)}", exc_info=True)

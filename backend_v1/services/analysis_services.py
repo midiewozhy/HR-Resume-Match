@@ -1,7 +1,7 @@
 import logging
 import json
-from services.feishu_services import get_system_prompt_cache
-from backend_v1.services.client_services import llm_client
+from services.feishu_services import construct_system_prompt
+from services.client_services import llm_client
 import re
 import json
 from config import Config
@@ -40,7 +40,7 @@ def get_user_prompt(resume: str, pdf_urls: list):
     return user_prompt
 
 def construct_prompt(user_prompt: list):
-    system_prompt = get_system_prompt_cache() # 获取静态的system prompt
+    system_prompt = construct_system_prompt() # 获取静态的system prompt
     whole_prompt = system_prompt + user_prompt
     return whole_prompt
 
@@ -78,7 +78,7 @@ def analyze_candidate(resume: str, pdf_urls: list):
 
     # 6. 解析JSON并返回
     try:
-        return ai_ret
+        return json.loads(ai_ret)
     except json.JSONDecodeError as e:
         logging.error(f"JSON解析失败 | 内容: {ai_ret[:100]}... | 错误：{str(e)}")
         raise LLMContentEmptyError from e

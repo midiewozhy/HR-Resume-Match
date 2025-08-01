@@ -1,8 +1,7 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from flask_session import Session
 from config import Config
-from services.feishu_services import start_feishu_schedule
+#from services.feishu_services import start_feishu_schedule
 from multiprocessing import Process
 import atexit
 import os
@@ -30,10 +29,10 @@ CORS(app,
 )
 
 # 导入蓝图
-from backend_v1.api.cdd_analysis import resources_bp
+from api.cdd_analysis import analysis_bp
 
 # 注册蓝图
-app.register_blueprint(resources_bp)
+app.register_blueprint(analysis_bp)
 
 # 添加服务前端文件的路由
 @app.route('/')
@@ -44,11 +43,9 @@ def serve_frontend():
 def serve_static(path):
     return send_from_directory(FRONTEND_DIR, path)
 
-def start_feishu_process():
-    start_feishu_schedule()
 
 if __name__ == '__main__':
-    # 创建一个新的进程来运行飞书服务调度
+    """    # 创建一个新的进程来运行飞书服务调度
     feishu_process = Process(target=start_feishu_process)
     feishu_process.daemon = False  # 设置为非守护进程
     feishu_process.start()
@@ -61,6 +58,6 @@ if __name__ == '__main__':
     # 确保前端目录存在
     if not os.path.exists(FRONTEND_DIR):
         os.makedirs(FRONTEND_DIR)
-        print(f"创建前端目录: {FRONTEND_DIR}")
+        print(创建前端目录: {FRONTEND_DIR})"""
 
     app.run(debug=True, port=5000)
