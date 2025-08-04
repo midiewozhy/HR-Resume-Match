@@ -59,7 +59,7 @@ def fetch_feishu_docs():
         lark.logger.error(f"飞书文档获取失败: {str(e)}", exc_info=True)
         return False
     
-def feishu_scheduler(interval=180): 
+def feishu_scheduler(interval=21600): 
     """后台定时任务：循环获取文档并休眠指定时间"""
     # 启动时先执行一次
     fetch_feishu_docs()
@@ -75,7 +75,7 @@ def feishu_scheduler(interval=180):
             # 异常后短暂休眠再重试，避免频繁报错
             time.sleep(60)
 
-def start_feishu_thread(interval=180):
+def start_feishu_thread(interval=21600):
     """启动飞书文档获取线程"""
     # 创建后台线程（daemon=True：主程序退出时自动结束线程）
     feishu_thread = threading.Thread(

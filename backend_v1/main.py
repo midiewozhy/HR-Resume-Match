@@ -55,7 +55,7 @@ if __name__ == '__main__':
         pass
     atexit.register(cleanup)"""
 
-    start_feishu_thread(interval=180)
+    start_feishu_thread(interval=21600)
     # 确保前端目录存在
     if not os.path.exists(FRONTEND_DIR):
         os.makedirs(FRONTEND_DIR)
