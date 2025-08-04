@@ -5,6 +5,87 @@ import lark_oapi as lark
 from lark_oapi.api.bitable.v1 import *
 from lark_oapi.api.docs.v1 import *
 from config import Config
+import threading
+from functools import wraps
+
+_content_cache = {
+    "_pre_content_cache": '',
+    "_paper_content_cache": '',
+    "_tag_content_cache": ''
+}
+
+_cache_lock = threading.Lock()
+
+def thread_safe(func):
+    """线程安全装饰器，确保缓存更新时的原子性"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with _cache_lock:
+            return func(*args, **kwargs)
+    return wrapper
+
+@thread_safe
+def update_content_cache(pre_content, paper_content, tag_content):
+    """更新文档内容缓存"""
+    _content_cache["_pre_content_cache"] = pre_content
+    _content_cache["_paper_content_cache"] = paper_content
+    _content_cache["_tag_content_cache"] = tag_content
+
+
+@thread_safe
+def get_cached_content():
+    """获取缓存的文档内容"""
+    return _content_cache.copy()  # 返回副本避免外部修改
+
+def fetch_feishu_docs():
+    """单次获取所有飞书文档内容并更新缓存"""
+    try:
+        # 获取访问令牌
+        token_info = get_access_token(Config.APP_ID, Config.APP_SECRET)
+        if not token_info:
+            raise Exception("获取access_token失败")
+        access_token = token_info["access_token"]
+        
+        # 批量获取文档内容
+        pre_score_content = get_feishu_doc_content(Config.PRE_SCORE_TOKEN, access_token)
+        paper_score_content = get_feishu_doc_content(Config.PAPER_SCORE_TOKEN, access_token)
+        tag_content = get_feishu_doc_content(Config.TAG_DOC_TOKEN, access_token)
+        
+        # 更新缓存
+        update_content_cache(pre_score_content, paper_score_content, tag_content)
+        lark.logger.info("飞书文档内容缓存更新成功")
+        return True
+    except Exception as e:
+        lark.logger.error(f"飞书文档获取失败: {str(e)}", exc_info=True)
+        return False
+    
+def feishu_scheduler(interval=180): 
+    """后台定时任务：循环获取文档并休眠指定时间"""
+    # 启动时先执行一次
+    fetch_feishu_docs()
+    
+    while True:
+        try:
+            # 休眠指定时间（单位：秒）
+            time.sleep(interval)
+            # 执行更新
+            fetch_feishu_docs()
+        except Exception as e:
+            lark.logger.error(f"定时任务异常: {str(e)}", exc_info=True)
+            # 异常后短暂休眠再重试，避免频繁报错
+            time.sleep(60)
+
+def start_feishu_thread(interval=180):
+    """启动飞书文档获取线程"""
+    # 创建后台线程（daemon=True：主程序退出时自动结束线程）
+    feishu_thread = threading.Thread(
+        target=feishu_scheduler,
+        args=(interval,),
+        daemon=True
+    )
+    feishu_thread.start()
+    lark.logger.info(f"飞书文档定时获取线程已启动，更新间隔 {interval} 秒")
+    return feishu_thread
 
 def get_access_token(app_id, app_secret):
     """
@@ -98,12 +179,16 @@ def get_feishu_doc_content(doc_token: str, access_token: str) -> str:
     return response.data.content
 
 def construct_system_prompt():
-
-    access_token = get_access_token(Config.APP_ID, Config.APP_SECRET)['access_token']
+    """access_token = get_access_token(Config.APP_ID, Config.APP_SECRET)['access_token']
     paper_score_content = get_feishu_doc_content(Config.PAPER_SCORE_TOKEN, access_token)
     pre_score_content = get_feishu_doc_content(Config.PRE_SCORE_TOKEN, access_token)
-    tag_content = get_feishu_doc_content(Config.TAG_DOC_TOKEN, access_token)
-    
+    tag_content = get_feishu_doc_content(Config.TAG_DOC_TOKEN, access_token)"""
+
+    cached_content = get_cached_content()
+    pre_score_content = cached_content["_pre_content_cache"]
+    paper_score_content = cached_content["_paper_content_cache"]
+    tag_content = cached_content["_tag_content_cache"]
+
     system_prompt = f"""
     你是专业人才分析专家，需严格执行以下流程：  
 

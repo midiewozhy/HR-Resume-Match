@@ -1,7 +1,7 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from config import Config
-#from services.feishu_services import start_feishu_schedule
+from services.feishu_services import start_feishu_thread
 from multiprocessing import Process
 import atexit
 import os
@@ -53,11 +53,12 @@ if __name__ == '__main__':
     # 注册一个退出处理函数，在主程序退出时不终止飞书服务进程
     def cleanup():
         pass
-    atexit.register(cleanup)
+    atexit.register(cleanup)"""
 
+    start_feishu_thread(interval=180)
     # 确保前端目录存在
     if not os.path.exists(FRONTEND_DIR):
         os.makedirs(FRONTEND_DIR)
-        print(创建前端目录: {FRONTEND_DIR})"""
+        print(f'创建前端目录: {FRONTEND_DIR}')
 
     app.run(debug=True, port=5000)
