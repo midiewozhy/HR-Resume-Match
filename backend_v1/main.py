@@ -29,10 +29,10 @@ CORS(app,
 )
 
 # 导入蓝图
-from api.cdd_analysis import analysis_bp
+from api.single_cdd_analysis import single_analysis_bp
 
 # 注册蓝图
-app.register_blueprint(analysis_bp)
+app.register_blueprint(single_analysis_bp)
 
 # 添加服务前端文件的路由
 @app.route('/')

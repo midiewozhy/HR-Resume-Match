@@ -1,7 +1,7 @@
 import os
 import tempfile
 from werkzeug.datastructures import FileStorage
-from flask import current_app
+from flask import current_app, logging
 import pdfplumber
 from pdfplumber.utils.exceptions import PdfminerException
 from pdfminer.pdfdocument import PDFEncryptionError
@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from requests.exceptions import RequestException
 from pathlib import Path
 import mimetypes
+import csv
 
 # 自定义error类型
 class InvalidFileTypeError(Exception):
@@ -39,6 +40,10 @@ class PDFReadError(Exception):
     """PDF读取异常，用来反馈不同类型的读取错误"""
     pass
 
+class CSVReadError(Exception):
+    """CSV读取异常，用来反馈不同类型的读取错误"""
+    pass
+
 class InvalidURLError(Exception):
     """URL格式不符合要求"""
     def __str__(self):
@@ -50,7 +55,7 @@ class URLUnreachableError(Exception):
         return "链接无法访问，可能已过期或不存在啦~"
     
 # 验证文件类型
-def validate_file_type(file: FileStorage) -> None:
+def validate_pdf_file_type(file: FileStorage) -> None:
     """验证文件是否为PDF类型（无需保存临时文件）"""
     # 1. 检查文件扩展名（快速筛选）
     if not file.filename.lower().endswith('.pdf'):
@@ -68,6 +73,17 @@ def validate_file_type(file: FileStorage) -> None:
     mime_type, _ = mimetypes.guess_type(file.filename)
     if mime_type != 'application/pdf':
         raise InvalidFileTypeError()
+    
+def validate_csv_file_type(file: FileStorage) -> None:
+    """验证文件是否为CSV类型（无需保存临时文件）"""
+    # 1. 检查文件扩展名（快速筛选）
+    if not file.filename.lower().endswith('.csv'):
+        raise InvalidFileTypeError("请上传CSV格式的文件")
+    
+    # 2. 检查MIME类型
+    mime_type, _ = mimetypes.guess_type(file.filename)
+    if mime_type != 'text/csv':
+        raise InvalidFileTypeError("请上传CSV格式的文件")
 
 # 检查文件是否过大
 def validate_file_size(file: FileStorage) -> None:
@@ -101,14 +117,14 @@ def validate_file_size(file: FileStorage) -> None:
         raise FileSaveError(f"验证文件大小时出错: {str(e)}") from e
 
 # 保存临时文件
-def save_temp_file(file: FileStorage) -> str:
+def save_pdf_temp_file(file: FileStorage) -> str:
     """保存文件到临时目录（增强大小验证）"""
     # 1. 验证文件类型和大小（如果需要）
-    validate_file_type(file)
+    validate_pdf_file_type(file)
     validate_file_size(file)  # 获取验证结果
 
     # 2. 创建并保存临时文件
-    temp_dir = os.path.join(tempfile.gettempdir(), 'resume_system')
+    temp_dir = os.path.join(tempfile.gettempdir(), 'pdfcontent_system')
     os.makedirs(temp_dir, exist_ok=True)
 
     # 使用tempfile.NamedTemporaryFile创建安全的临时文件
@@ -127,6 +143,36 @@ def save_temp_file(file: FileStorage) -> str:
             stream.seek(0)
             while chunk := stream.read(chunk_size):
                 temp_file.write(chunk) 
+
+    return temp_file_path
+
+def save_csv_temp_file(file: FileStorage) -> str:
+    """保存CSV文件到临时目录（增强大小验证）"""
+    # 1. 验证文件类型和大小（如果需要）
+    validate_csv_file_type(file)
+    validate_file_size(file)  # 获取验证结果
+
+    # 2. 创建并保存临时文件
+    temp_dir = os.path.join(tempfile.gettempdir(), 'csvcontent_system')
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # 使用tempfile.NamedTemporaryFile创建安全的临时文件
+    with tempfile.NamedTemporaryFile(
+        mode='w',
+        dir=temp_dir,
+        prefix='resume_',
+        suffix='.csv',
+        delete=False,
+        encoding='utf-8'
+    ) as temp_file:
+        temp_file_path = temp_file.name
+        
+        # 分块写入文件，避免大文件占用过多内存
+        chunk_size = 4096
+        with file.stream as stream:
+            stream.seek(0)
+            while chunk := stream.read(chunk_size):
+                temp_file.write(chunk.decode('utf-8')) 
 
     return temp_file_path
 
@@ -169,7 +215,48 @@ def read_pdf(file_path: str) -> str:
         raise PDFReadError(f"这个PDF文件有点特别呢～系统暂时无法解析它，请确认文件格式是否正确")
     except Exception as e:
         # 其他未知错误（隐藏技术细节）
+        logging.error(f"PDF读取失败: {str(e)}", exc_info=True)
         raise PDFReadError("解析文件时出了点小问题，请重试或换一个文件试试；如果多次有误，请联系技术同学。")
+    
+def read_csv(file_path: str) -> list[dict]:
+    """
+    读取CSV文件内容并返回字典列表
+    :param file_path: 临时文件路径
+    :return: 提取的CSV内容（每行作为一个字典）
+    """
+    if not os.path.exists(file_path):
+        raise CSVReadError('文件似乎飘走啦，辛苦你在上传一下哟~')
+    
+    if not os.path.isfile(file_path):
+        raise CSVReadError('上传的好像不是正确的文件呢，请检查~')
+    
+    if not file_path.lower().endswith('.csv'):
+        raise CSVReadError('文件格式不是csv，请上传csv文件呢？')
+    
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)  # 使用基础reader按索引访问列
+            first_column = []
+            for row_num, row in enumerate(reader, start=1):  # 行号从1开始
+                # 处理空行（可选：跳过或报错，此处选择跳过）
+                if not row:
+                    continue
+                # 提取第一列（索引0），若行长度不足会触发IndexError
+                first_column.append(row[0])
+            return first_column
+
+    # 聚焦csv模块自带的错误处理
+    except csv.Error as e:
+        logging.error(f"CSV读取错误: {str(e)}", exc_info=True)
+        raise CSVReadError("文件格式好像有问题呢，请重试一下吧~")
+    # 基础文件操作错误（与文件本身相关，非CSV格式问题）
+    except UnicodeDecodeError:
+        raise CSVReadError("文件编码格式不正确，可以尝试换一个文件试试哦~")
+    except PermissionError:
+        raise CSVReadError("文件把我们拒之门外了，可能是权限问题，请检查文件权限或联系技术同学~")
+    except Exception as e:
+        logging.error(f"CSV读取失败: {str(e)}", exc_info=True)
+        raise CSVReadError("读取CSV文件时出了点小问题，请重试或联系技术同学。")
 
 # URL验证函数
 def validate_paper_url(url: str) -> None:
@@ -196,10 +283,10 @@ def validate_paper_url(url: str) -> None:
         raise URLUnreachableError("网络开小差了~ 请检查链接是否有效，或者稍后再试哦~ ")
     
 # pdf文件的基础验证函数
-def validate_resume_pdf_file(file: FileStorage) -> str:
+def validate_resume_paper_pdf_file(file: FileStorage) -> str:
     try:
         # 4. 保存临时文件（调用Service层）
-        temp_path = save_temp_file(file)
+        temp_path = save_pdf_temp_file(file)
         #initialize_user_data()  # 初始化用户数据，清空之前的内容
         
         # 5. 上传成功，返回友好提示
@@ -211,6 +298,33 @@ def validate_resume_pdf_file(file: FileStorage) -> str:
     
     # 捕获“文件过大”
     except FileTooLargeError:
+        raise FileTooLargeError(10)
+    
+    # 捕获“临时文件保存错误”
+    except FileSaveError as e:
+        raise FileSaveError(str(e))
+    
+    # 捕获其他未知错误
+    except Exception as e:
+        # 未知错误时，避免技术细节，给安抚信息
+        raise Exception(f"上传文件时出了点小问题，请重试或联系技术同学。错误信息：{str(e)}")
+    
+# csv文件的基础验证函数
+def validate_batch_csv_file(file: FileStorage) -> str:
+    try:
+        # 4. 保存临时文件（调用Service层）
+        temp_path = save_csv_temp_file(file)
+        #initialize_user_data()  # 初始化用户数据，清空之前的内容
+        
+        # 5. 上传成功，返回友好提示
+        return temp_path
+    
+    # 捕获“文件类型错误”
+    except InvalidFileTypeError as e:
+        raise InvalidFileTypeError(str(e))
+    
+    # 捕获“文件过大”
+    except FileTooLargeError as e:
         raise FileTooLargeError(10)
     
     # 捕获“临时文件保存错误”

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, logging
 from services.input_services import (
-    validate_resume_pdf_file,
+    validate_resume_paper_pdf_file,
     read_pdf,
     validate_paper_url,
     InvalidFileTypeError,  # Service层定义的自定义异常
@@ -50,7 +50,7 @@ def llm_cdd_analysis() -> tuple[dict,int]:
     # 3. 调用Service层进行文件的基础校验（包括文件类型、大小等）
     if file and file.filename:
         try:
-            file_temp_path = validate_resume_pdf_file(file)
+            file_temp_path = validate_resume_paper_pdf_file(file)
         except InvalidFileTypeError:
             return jsonify({
                 "status": "fail",
