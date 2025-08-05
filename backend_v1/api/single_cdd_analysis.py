@@ -16,10 +16,10 @@ import logging
 import os
 
 
-analysis_bp = Blueprint('resources', __name__, url_prefix='/api')
+single_analysis_bp = Blueprint('resources', __name__, url_prefix='/api')
 
 
-@analysis_bp.route('/llm/cdd/analysis', methods=['POST'])
+@single_analysis_bp.route('/llm/single/cdd/analysis', methods=['POST'])
 def llm_cdd_analysis() -> tuple[dict,int]:
     """
     这是HR上传简历的接口函数，如果文件接收成功，会返回成功信息；若失败，则会返回错误类型。
