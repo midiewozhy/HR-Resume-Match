@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>匹配系统开始页</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 让body或父容器充满整个视口，并设置为弹性盒容器 */
+        body {
+            margin: 0; /* 清除默认margin */
+            min-height: 100vh; /* 高度占满整个屏幕 */
+            display: flex; /* 启用弹性盒 */
+            justify-content: center; /* 水平居中 */
+            align-items: center; /* 垂直居中 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="container mx-auto px-4 py-8">
+        <div class="log-entry">
+            <h1 class="text-4xl font-bold text-blue-700 mb-6 text-center display-flex justify-center">简历/论文匹配</h2>
+            
+            <br>
+
+            <div class="flex justify-center gap-8 mb-6">
+                <a href = 'single.html'>
+                    <button id="toSingleProcessing" name="toSingleProcessing" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">处理单个输入</button>
+                </a>
+                
+                <a href = 'batch.html'>
+                    <button id="toMultipleProcessing" name="toMultipleProcessing" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">处理批量输入</button>
+                </a>
+            </div>
+        </div>
+    </div>
