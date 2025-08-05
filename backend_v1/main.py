@@ -21,7 +21,7 @@ app.config.from_object(Config)
 
 # 启用CORS支持
 CORS(app, 
-     origins=["http://127.0.0.1:5501"],  # 仅保留实际使用的域名
+     origins=['*'],  # 仅保留实际使用的域名 "http://127.0.0.1:5501"
      supports_credentials=True,  # 允许携带凭证
      methods=['GET', 'POST', 'OPTIONS'],
      expose_headers=['Set-Cookie'],  # 允许前端访问Set-Cookie头
@@ -61,4 +61,4 @@ if __name__ == '__main__':
         os.makedirs(FRONTEND_DIR)
         print(f'创建前端目录: {FRONTEND_DIR}')
 
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, host = '0.0.0.0')

@@ -22,11 +22,11 @@ class LLMContentEmptyError(Exception):
     def __init__(self):
         super().__init__("评估结果生成失败啦~再给大模型一次机会吧！或者也可以联系技术支持哦！")
 
-def get_user_prompt(resume: str, pdf_urls: list):
+def get_user_prompt(pdf: str, url: str):
     user_info = f"""
     分析素材：  
-    - 简历内容： {resume}
-    - 论文链接：  {pdf_urls}
+    - PDF内容(简历或论文)： {pdf}
+    - 论文链接：  {url}
     请严格按 system prompt 输出 JSON。  
     """
     #- 评分标准（预打分用）：{pre_score_content}  
