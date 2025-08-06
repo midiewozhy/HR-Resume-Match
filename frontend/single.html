@@ -332,7 +332,7 @@
         //window.addEventListener('load', loadLogsFromStorage);
 
         // 点击事件处理（确保传入完整的formData）
-        startBtn.addEventListener('click', async function() {
+        startBtn.addEventListener('click', function() {
             clearLogs(); // 清空日志区域
             const formData = new FormData(document.getElementById('uploadForm'));
             const pdfFile = formData.get('pdfContent');
