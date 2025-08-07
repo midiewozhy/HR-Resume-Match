@@ -102,7 +102,7 @@
                 // 获取DOM元素
                 const pdfTab = document.getElementById('pdfTab');
                 const urlTab = document.getElementById('urlTab');
-                const pdfContent = document.getElementById('pdfContent');
+                const pdfContent = document.getElementById('pdfUploadForm');
                 const urlContent = document.getElementById('urlContent');
                 
                 // 点击第一个方块显示PDF上传区域
@@ -310,7 +310,13 @@
                 })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error;
+                        return response.json().then(errData => {
+                        // 从解析结果中提取message，若不存在则用默认信息
+                        throw new Error(errData.message || '分析失败，请重试');
+                    }).catch(() => {
+                        // 若解析失败（如后端返回非JSON格式），抛出默认错误
+                        throw new Error('服务器返回格式错误，请联系技术人员');
+                    });
                     }
                     return response.json();
                 })
