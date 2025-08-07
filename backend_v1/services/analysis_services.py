@@ -7,6 +7,7 @@ import json
 from config import Config
 from threading import Lock, Thread
 import queue
+from queue import Empty
 import openai
 import requests
 
@@ -112,7 +113,7 @@ def batch_analysis(paper_urls: list[tuple[int,str]]):
             try:
                 # 从队列获取任务（包含索引和数据），超时退出避免阻塞
                 index, data = queue.get(timeout=1)
-            except queue.Empty:
+            except Empty:
                 break
 
             user_info = f"""
@@ -122,10 +123,11 @@ def batch_analysis(paper_urls: list[tuple[int,str]]):
 
             user_prompt = [{"role": "user","content": user_info}]
             whole_prompt = system_prompt + user_prompt
+            #print(whole_prompt)
 
             try:
                 completion = llm_client.chat.completions.create(
-                    model=Config.BOT_ID,
+                    model=Config.BATCH_BOT_ID,
                     messages=whole_prompt,
                     temperature=0,
                     seed=42,

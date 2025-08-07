@@ -1,6 +1,6 @@
 import csv
 import io
-from flask import Blueprint, request, jsonify, logging, make_response
+from flask import Blueprint, request, jsonify, make_response
 from services.input_services import (
     validate_batch_csv_file, 
     read_csv,
@@ -11,6 +11,7 @@ from services.input_services import (
     )
 from services.analysis_services import batch_analysis
 from urllib.parse import quote
+import logging
 
 batch_input_analysis_bp = Blueprint('batch_input_analysis', __name__, url_prefix='/api')
 
@@ -86,6 +87,7 @@ def llm_batch_input_analysis():
         
         # 准备CSV输出
         output = io.StringIO()
+        output.write('\ufeff')
         # 定义CSV表头
         fieldnames = [
             'index', 'link', 'score', 'summary', 

@@ -2,8 +2,8 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from config import Config
 from services.feishu_services import start_feishu_thread
-from multiprocessing import Process
-import atexit
+#from multiprocessing import Process
+#import atexit
 import os
 
 # 获取项目根目录路径

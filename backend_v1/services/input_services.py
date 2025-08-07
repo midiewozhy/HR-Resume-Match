@@ -81,9 +81,16 @@ def validate_csv_file_type(file: FileStorage) -> None:
         raise InvalidFileTypeError()
     
     # 2. 检查MIME类型
-    mime_type, _ = mimetypes.guess_type(file.filename)
-    if mime_type != 'text/csv':
-        raise InvalidFileTypeError()
+    """mime_type, _ = mimetypes.guess_type(file.filename)
+    allowed_mime_types = {
+        'text/csv',
+        'application/csv',
+        'text/x-csv',
+        'text/comma-separated-values',
+        'text/plain'
+    }
+    if mime_type not in allowed_mime_types:
+        raise InvalidFileTypeError()"""
 
 # 检查文件是否过大
 def validate_file_size(file: FileStorage) -> None:
@@ -321,7 +328,7 @@ def validate_batch_csv_file(file: FileStorage) -> str:
         # 5. 上传成功，返回友好提示
         return temp_path
     
-    # 捕获“文件类型错误”
+     # 捕获“文件类型错误”
     except InvalidFileTypeError:
         raise InvalidFileTypeError()
     
@@ -337,3 +344,7 @@ def validate_batch_csv_file(file: FileStorage) -> str:
     except Exception as e:
         # 未知错误时，避免技术细节，给安抚信息
         raise Exception(f"上传文件时出了点小问题，请重试或联系技术同学。错误信息：{str(e)}")
+    
+   
+    
+    

@@ -242,14 +242,9 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    console.log('Error Headers:', [...response.headers.entries()]);
-                    return response.json().then(errData => {
-                    // 从解析结果中提取message，若不存在则用默认信息
-                    throw new Error(errData.message || '分析失败，请重试');
-                }).catch(() => {
-                    // 若解析失败（如后端返回非JSON格式），抛出默认错误
-                    throw new Error('服务器返回格式错误，请联系技术人员');
-                });
+                    return response.json().then(errorData => {
+                        addLog(`分析过程中发生错误：${errorData.message}`, 'error');
+                    });
             }
                 // 从响应头获取文件名（后端已设置Content-Disposition）
                 const contentDisposition = response.headers.get('Content-Disposition');
@@ -269,9 +264,6 @@
                 downloadButton.disabled = false;
                 downloadButton.classList.remove('opacity-50', 'cursor-not-allowed');
             })
-            .catch(error => {
-                addLog(`分析过程中发生错误：${error.message}`, 'error');
-            });
         }
 
 

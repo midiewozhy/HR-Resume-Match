@@ -270,4 +270,4 @@ def get_batch_system_prompt():
     - 所有判断必须严格基于两个文档内容
     """
 
-    return [{"role": "system", "content": {system_prompt}}]
+    return [{"role": "system", "content": system_prompt}]
