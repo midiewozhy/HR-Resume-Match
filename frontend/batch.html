@@ -30,7 +30,7 @@
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex items-center justify-center p-4">
     <div class="bg-white p-6 md:p-10 rounded-xl max-w-4xl w-full mx-4 card-shadow">
         <!-- 标题 -->
-        <h2 class="text-2xl md:text-3xl font-bold text-primary text-center">简历/论文批量输入</h2>
+        <h2 class="text-2xl md:text-3xl font-bold text-primary text-center">论文批量输入</h2>
 
         <br>
 
@@ -52,7 +52,7 @@
             <div class="relative mt-10 mb-10 max-w-3xl mx-auto">
                 <!-- 主容器 - 带边框 -->
                 <div class="border-2 border-gray-300 rounded-lg p-6 pt-8 relative bg-white">
-                    <label for="batchContent" class="text-lg font-semibold text-gray-800 mb-2 flex items-center">文件上传</label>
+                    <label for="batchContent" class="text-lg font-semibold text-gray-800 mb-2 flex items-center">文件上传（不含表头的文件）</label>
                     <div class="flex flex-col md:flex-row gap-4 p-5 bg-gray-50 border border-gray-200 rounded-lg">
                         <!-- 替换为更符合CSV文件的图标（表格/数据风格） -->
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -60,7 +60,7 @@
                         </svg>
                         <div class="flex-1">
                             <p class="text-gray-500 text-sm">支持CSV格式</p>
-                            <input id="batchContent" name="batchContent" type="file" accept="application/csv, text/csv, .xls, .xlsx" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent transition-all mt-2" />
+                            <input id="batchContent" name="batchContent" type="file" accept="application/csv, text/csv" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent transition-all mt-2" />
                         </div>
                     </div>
                 </div>
@@ -95,7 +95,7 @@
         <!-- 文件输出区 -->
         <div class="relative mt-6 mb-10 max-w-3xl mx-auto">
             <!-- 输出区域容器 - 保留原样式 -->
-            <div class="border-2 border-gray-300 rounded-lg p-6 pt-8 relative bg-white">
+            <div class="border-2 border-gray-300 rounded-lg p-6 pt-8 relative bg-white output-container">
                 <label class="text-lg font-semibold text-gray-800 mb-4 flex items-center">输出文件</label>
                 
                 <!-- 使用 <output> 标签包裹输出内容，增强语义化 -->
@@ -114,14 +114,8 @@
                             
                             <!-- 下载按钮组 -->
                             <div class="flex gap-2">
-                                <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                                    CSV
-                                </button>
-                                <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                                    XLS
-                                </button>
-                                <button class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-                                    XLSX
+                                <button class="px-4 py-2 bg-blue border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-blue-500 transition-colors opacity-50 cursor-not-allowed" data_format = "csv" disabled>
+                                    下载
                                 </button>
                             </div>
                         </div>
@@ -131,4 +125,203 @@
         </div>
     
     </div>
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const tasklogArea = document.getElementById('tasklogArea');
+        const outputArea = document.querySelector('.output-container');
+        const downloadButton = document.querySelector('[data_format="csv"]')
+
+        function saveLogsToStorage() {
+            const logEntries = Array.from(tasklogArea.querySelectorAll('.log-entry'))
+                .map(entry => ({
+                    message: entry.querySelector('.log-content').textContent,
+                    type: entry.className.split(' ').find(cls => cls.startsWith('log-'))?.replace('log-', '') || 'info'
+                }));
+            
+            localStorage.setItem('taskLogs', JSON.stringify(logEntries));
+        }
+
+        // 从localStorage恢复日志
+        function loadLogsFromStorage() {
+            const savedLogs = localStorage.getItem('taskLogs');
+            if (savedLogs) {
+                try {
+                    const logs = JSON.parse(savedLogs);
+                    logs.forEach(log => addLog(log.message, log.type));
+                } catch (e) {
+                    console.error('Failed to load logs from storage', e);
+                    localStorage.removeItem('taskLogs'); // 清除损坏的日志数据
+                }
+            }
+        }
+
+        // 清空日志（用于重置按钮）
+        function clearLogs() {
+            tasklogArea.innerHTML = '';
+            localStorage.removeItem('taskLogs');
+        }
+
+        // 定义一个addLog函数
+        function addLog(message, type = 'info') {
+            //const timestamp = new Date();
+            //const timeString = timestamp.toLocaleTimeString(); 暂时没有用
+            
+            // 创建日志条目
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            
+            // 设置图标
+            let icon = 'ℹ️';
+            switch(type) {
+                case 'error': icon = '⚠️'; break;
+                case 'success': icon = '✅'; break;
+            }
+            
+            logEntry.innerHTML = `
+                <div class="log-icon">${icon}</div>
+                <div class="log-content">${message}</div>
+            `;
+            
+            tasklogArea.appendChild(logEntry);
+            
+            // 自动滚动到底部
+            tasklogArea.scrollTop = tasklogArea.scrollHeight;
+        
+            saveLogsToStorage();
+        }
+
+        // 格式化输出结果，使其与日志风格一致
+        function formatResult(data) {
+            // 定义要展示的字段及其标签，按指定顺序排列
+            const fields = [
+                { key: 'cdd_score', label: 'CDD评分' },
+                { key: 'job_match_1', label: '推荐岗位1' },
+                { key: 'job_match_1_contact', label: '岗位1联系方式' },
+                { key: 'reason_1', label: '推荐理由1' },
+                { key: 'job_match_2', label: '推荐岗位2' },
+                { key: 'job_match_2_contact', label: '岗位2联系方式' },
+                { key: 'reason_2', label: '推荐理由2' }
+            ];
+            
+            // 创建结果容器
+            const resultContainer = document.createElement('div');
+            resultContainer.className = 'analysis-result';
+            
+            // 添加标题
+            const title = document.createElement('div');
+            title.className = 'result-title log-entry log-info';
+            title.innerHTML = `
+                <div class="log-icon">📊</div>
+                <div class="log-content">分析结果</div>
+            `;
+            resultContainer.appendChild(title);
+            
+            // 按顺序添加各个字段
+            fields.forEach(field => {
+                const value = data[field.key] !== null ? data[field.key] : '无';
+                const fieldElement = document.createElement('div');
+                fieldElement.className = 'result-field log-entry log-info';
+                fieldElement.innerHTML = `
+                    <div class="log-icon">•</div>
+                    <div class="log-content"><strong>${field.label}:</strong> ${value}</div>
+                `;
+                resultContainer.appendChild(fieldElement);
+            });
+            
+            return resultContainer;
+        }
+
+        function batch_papers_analysis(formData) {
+            addLog('开始进行分析...', 'info');
+
+            fetch('http://localhost:5000/api/llm/batch/input/analysis', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.log('Error Headers:', [...response.headers.entries()]);
+                    return response.json().then(errData => {
+                    // 从解析结果中提取message，若不存在则用默认信息
+                    throw new Error(errData.message || '分析失败，请重试');
+                }).catch(() => {
+                    // 若解析失败（如后端返回非JSON格式），抛出默认错误
+                    throw new Error('服务器返回格式错误，请联系技术人员');
+                });
+            }
+                // 从响应头获取文件名（后端已设置Content-Disposition）
+                const contentDisposition = response.headers.get('Content-Disposition');
+                const fileName = contentDisposition 
+                    ? contentDisposition.match(/filename="?([^"]+)"?/)[1] 
+                    : 'analysis_results.csv'; // 默认文件名
+                // 返回文件blob和文件名
+                return Promise.all([response.blob(), fileName]);
+            })
+            .then(([fileBlob, fileName]) => {
+                addLog('批量分析完成，文件已准备好下载', 'success');
+                // 更新输出区显示的文件名
+                document.querySelector('.text-gray-700.font-medium').textContent = fileName;
+                // 存储文件blob到全局变量，供下载按钮使用
+                window.downloadBlob = fileBlob;
+                // 启用下载按钮（如果之前禁用）
+                downloadButton.disabled = false;
+                downloadButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            })
+            .catch(error => {
+                addLog(`分析过程中发生错误：${error.message}`, 'error');
+            });
+        }
+
+
+        // 点击事件处理（确保传入完整的formData）
+        startBtn.addEventListener('click', async function() {
+            clearLogs(); // 清空日志区域
+            const formData = new FormData(document.getElementById('batchForm'));
+            const csvFile = formData.get('batchContent');
+
+            // 检查是否上传了数据
+            if (!csvFile || csvFile.size==0) {
+                addLog('请先上传数据', 'error');
+                return;
+            }
+
+            addLog('正在处理批量数据，由于数据量较大，等待时间较长，请不要关闭界面', 'info');
+            batch_papers_analysis(formData);
+        });
+
+        // 重置按钮点击事件
+        resetBtn.addEventListener('click', function() {
+            clearLogs(); // 清空日志区域
+            // 重置输出区显示
+            document.querySelector('.text-gray-700.font-medium').textContent = 'results.csv';
+            // 清除全局文件blob
+            window.downloadBlob = null;
+            // 禁用下载按钮（重置后无文件可下载）
+            downloadButton.disabled = true;
+            downloadButton.classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('batchForm').reset(); // 重置表单
+        });
+
+        // 下载按钮点击事件
+        downloadButton.addEventListener('click', function() {
+            if (!window.downloadBlob) {
+                addLog('没有可下载的文件，请先完成分析', 'error');
+                return;
+            }
+            // 创建临时下载链接
+            const url = URL.createObjectURL(window.downloadBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            // 获取显示的文件名作为下载文件名
+            a.download = document.querySelector('.text-gray-700.font-medium').textContent;
+            document.body.appendChild(a);
+            a.click(); // 触发下载
+            // 清理临时资源
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addLog('文件下载完成', 'info');
+        });
+    </script>
 </body>

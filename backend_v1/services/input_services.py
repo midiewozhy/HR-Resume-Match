@@ -17,7 +17,7 @@ import csv
 class InvalidFileTypeError(Exception):
     """文件类型不符合要求"""
     def __str__(self):
-        return "请上传PDF格式的文件"
+        return "请上传正确格式的文件"
 
 class FileTooLargeError(Exception):
     """文件大小超过限制"""
@@ -78,17 +78,17 @@ def validate_csv_file_type(file: FileStorage) -> None:
     """验证文件是否为CSV类型（无需保存临时文件）"""
     # 1. 检查文件扩展名（快速筛选）
     if not file.filename.lower().endswith('.csv'):
-        raise InvalidFileTypeError("请上传CSV格式的文件")
+        raise InvalidFileTypeError()
     
     # 2. 检查MIME类型
     mime_type, _ = mimetypes.guess_type(file.filename)
     if mime_type != 'text/csv':
-        raise InvalidFileTypeError("请上传CSV格式的文件")
+        raise InvalidFileTypeError()
 
 # 检查文件是否过大
 def validate_file_size(file: FileStorage) -> None:
     """验证文件大小是否超过限制，必要时流式计算大小"""
-    max_size_mb = current_app.config.get('MAX_PDF_SIZE', 10)
+    max_size_mb = current_app.config.get('MAX_FILE_SIZE', 10)
     max_size_bytes = max_size_mb * 1024 * 1024
     
     # 优先使用content_length属性（如果存在）
@@ -185,10 +185,10 @@ def read_pdf(file_path: str) -> str:
     """
     # 基础校验： 1. 文件是否存在（防止系统自动删除等意外情况）；2. 简单检验扩展名，防止人为修改
     if not os.path.exists(file_path):
-        raise PDFReadError('文件似乎飘走啦，辛苦你在上传一下哟~')
+        raise PDFReadError("文件似乎飘走啦，辛苦你在上传一下哟~")
     
     if not file_path.lower().endswith('.pdf'):
-        raise PDFReadError('文件格式不是pdf，请上传pdf文件呢？')
+        raise PDFReadError("文件格式不是pdf，请上传pdf文件呢？")
     
     # 读取pdf内容，若是有错误则输出错误信息
     try:
@@ -202,7 +202,7 @@ def read_pdf(file_path: str) -> str:
                     full_text += page_text + "\n\n" # 空格符表示下一个页面
 
             if not full_text.strip():
-                raise PDFReadError('没有可识别的文字内容哟，请尝试上传非扫描版的简历！')
+                raise PDFReadError("没有可识别的文字内容哟，请尝试上传非扫描版的简历！")
             
         return full_text
             
@@ -218,32 +218,34 @@ def read_pdf(file_path: str) -> str:
         logging.error(f"PDF读取失败: {str(e)}", exc_info=True)
         raise PDFReadError("解析文件时出了点小问题，请重试或换一个文件试试；如果多次有误，请联系技术同学。")
     
-def read_csv(file_path: str) -> list[dict]:
+def read_csv(file_path: str) -> list[str]:
     """
     读取CSV文件内容并返回字典列表
     :param file_path: 临时文件路径
     :return: 提取的CSV内容（每行作为一个字典）
     """
     if not os.path.exists(file_path):
-        raise CSVReadError('文件似乎飘走啦，辛苦你在上传一下哟~')
+        raise CSVReadError("文件似乎飘走啦，辛苦你在上传一下哟~")
     
     if not os.path.isfile(file_path):
-        raise CSVReadError('上传的好像不是正确的文件呢，请检查~')
+        raise CSVReadError("上传的好像不是正确的文件呢，请检查~")
     
     if not file_path.lower().endswith('.csv'):
-        raise CSVReadError('文件格式不是csv，请上传csv文件呢？')
+        raise CSVReadError("文件格式不是csv，请上传csv文件呢？")
     
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            reader = csv.reader(f)  # 使用基础reader按索引访问列
-            first_column = []
-            for row_num, row in enumerate(reader, start=1):  # 行号从1开始
-                # 处理空行（可选：跳过或报错，此处选择跳过）
-                if not row:
-                    continue
-                # 提取第一列（索引0），若行长度不足会触发IndexError
-                first_column.append(row[0])
-            return first_column
+            first_column = [
+                row[0].strip()  # 去除首尾空格
+                for row in csv.reader(f)
+                if row and row[0].strip()  # 双重检查：
+                # 1. 确保行不为空 (避免 IndexError)
+                # 2. 确保第一列非空且非纯空格
+            ]
+
+        first_column = [(index, url) for index, url in enumerate(first_column)]
+
+        return first_column
 
     # 聚焦csv模块自带的错误处理
     except csv.Error as e:
@@ -255,7 +257,7 @@ def read_csv(file_path: str) -> list[dict]:
     except PermissionError:
         raise CSVReadError("文件把我们拒之门外了，可能是权限问题，请检查文件权限或联系技术同学~")
     except Exception as e:
-        logging.error(f"CSV读取失败: {str(e)}", exc_info=True)
+        logging.error(f"CSV读取失败: {str(e)}", exc_info=True) 
         raise CSVReadError("读取CSV文件时出了点小问题，请重试或联系技术同学。")
 
 # URL验证函数
@@ -320,11 +322,11 @@ def validate_batch_csv_file(file: FileStorage) -> str:
         return temp_path
     
     # 捕获“文件类型错误”
-    except InvalidFileTypeError as e:
-        raise InvalidFileTypeError(str(e))
+    except InvalidFileTypeError:
+        raise InvalidFileTypeError()
     
     # 捕获“文件过大”
-    except FileTooLargeError as e:
+    except FileTooLargeError:
         raise FileTooLargeError(10)
     
     # 捕获“临时文件保存错误”

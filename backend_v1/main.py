@@ -21,18 +21,20 @@ app.config.from_object(Config)
 
 # 启用CORS支持
 CORS(app, 
-     origins=['*'],  # 仅保留实际使用的域名 "http://127.0.0.1:5501"
+     origins=["http://127.0.0.1:5501"],  # 仅保留实际使用的域名 "*"
      supports_credentials=True,  # 允许携带凭证
      methods=['GET', 'POST', 'OPTIONS'],
-     expose_headers=['Set-Cookie'],  # 允许前端访问Set-Cookie头
-     allow_headers=['Set-Cookie', 'Content-Type']
+     #expose_headers=['Set-Cookie'],  # 允许前端访问Set-Cookie头
+     #allow_headers=['Set-Cookie', 'Content-Type']
 )
 
 # 导入蓝图
 from api.single_cdd_analysis import single_analysis_bp
+from api.batch_input_analysis import batch_input_analysis_bp
 
 # 注册蓝图
 app.register_blueprint(single_analysis_bp)
+app.register_blueprint(batch_input_analysis_bp)
 
 # 添加服务前端文件的路由
 @app.route('/')
@@ -61,4 +63,6 @@ if __name__ == '__main__':
         os.makedirs(FRONTEND_DIR)
         print(f'创建前端目录: {FRONTEND_DIR}')
 
-    app.run(debug=True, port=5000, host = '0.0.0.0')
+    app.run(debug=True, port=5000)
+
+    # , host = '0.0.0.0'
