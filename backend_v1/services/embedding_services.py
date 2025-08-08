@@ -6,11 +6,13 @@ from lark_oapi.api.bitable.v1 import *
 import torch
 from typing import Optional, List
 
+from config import Config
+
 
 def get_dowei_record(client, page_token):
     request: SearchAppTableRecordRequest = (SearchAppTableRecordRequest.builder() 
-            .app_token("XD18bQYhraIp6fsNnu3cItRxnId") 
-            .table_id("tblaUW9BFzuZ19Gh") 
+            .app_token(Config.CHUNK_APP_TOKEN) 
+            .table_id(Config.CHUNK_TABLE_ID) 
             .user_id_type("open_id") 
             .page_token(page_token) 
             .page_size(10) 
@@ -61,8 +63,8 @@ def embedding_update(client ,record_list: list, data_list: list):
 
     # 构造请求对象
     request: BatchUpdateAppTableRecordRequest = (BatchUpdateAppTableRecordRequest.builder() 
-        .app_token("XD18bQYhraIp6fsNnu3cItRxnId") 
-        .table_id("tblaUW9BFzuZ19Gh") 
+        .app_token(Config.CHUNK_APP_TOKEN) 
+        .table_id(Config.CHUNK_TABLE_ID) 
         .user_id_type("open_id") 
         .ignore_consistency_check(True) 
         .request_body(BatchUpdateAppTableRecordRequestBody.builder()
