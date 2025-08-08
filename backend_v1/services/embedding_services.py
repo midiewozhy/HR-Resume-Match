@@ -1,10 +1,12 @@
 import json
+import time
 
 import lark_oapi as lark
 from lark_oapi.api.bitable.v1 import *
 
 import torch
 from typing import Optional, List
+import threading
 
 from config import Config
 
@@ -113,3 +115,31 @@ def feishu_dowei_embedding(dowei_client, embedding_client):
     embedding_data = encode(embedding_client,final_list)
     embedding_list = [item.tolist() for item in embedding_data]
     embedding_update(dowei_client, record_list, embedding_list)
+
+def embedding_scheduler(dowei_client,embedding_client,interval=21600): 
+    """后台定时任务：循环获取文档并休眠指定时间"""
+    # 启动时先执行一次
+    feishu_dowei_embedding(dowei_client, embedding_client)
+    
+    while True:
+        try:
+            # 休眠指定时间（单位：秒）
+            time.sleep(interval)
+            # 执行更新
+            feishu_dowei_embedding(dowei_client, embedding_client)
+        except Exception as e:
+            lark.logger.error(f"定时任务异常: {str(e)}", exc_info=True)
+            # 异常后短暂休眠再重试，避免频繁报错
+            time.sleep(60)
+
+def start_embedding_thread(dowei_client,embedding_client,interval=21600):
+    """启动飞书文档获取线程"""
+    # 创建后台线程（daemon=True：主程序退出时自动结束线程）
+    feishu_thread = threading.Thread(
+        target=embedding_scheduler,
+        args=(dowei_client,embedding_client,interval),
+        daemon=True
+    )
+    feishu_thread.start()
+    lark.logger.info(f"飞书文档定时获取线程已启动，更新间隔 {interval} 秒")
+    return feishu_thread
