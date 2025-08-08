@@ -4,18 +4,8 @@ import lark_oapi as lark
 from lark_oapi.api.bitable.v1 import *
 
 import torch
-from volcenginesdkarkruntime import Ark
 from typing import Optional, List
 
-embedding_client = Ark(
-    api_key="86ab5469-0305-46df-9587-1c6d8a4d2661",
-)
-
-dowei_client = (lark.Client.builder() 
-        .app_id("cli_a8c24cc4de61d00c") 
-        .app_secret("I1iUQBmAbdlD1DtLvoh88m2EqP4G2fMH") 
-        .log_level(lark.LogLevel.DEBUG) 
-        .build())
 
 def get_dowei_record(client, page_token):
     request: SearchAppTableRecordRequest = (SearchAppTableRecordRequest.builder() 
@@ -67,7 +57,7 @@ def encode(
     embedding = torch.nn.functional.normalize(embedding, dim=1, p=2).float().numpy()
     return embedding
 
-def embedding_update(dowei_client ,record_list: list, data_list: list):
+def embedding_update(client ,record_list: list, data_list: list):
 
     # 构造请求对象
     request: BatchUpdateAppTableRecordRequest = (BatchUpdateAppTableRecordRequest.builder() 
@@ -85,7 +75,7 @@ def embedding_update(dowei_client ,record_list: list, data_list: list):
         .build())
 
     # 发起请求
-    response: BatchUpdateAppTableRecordResponse = dowei_client.bitable.v1.app_table_record.batch_update(request)
+    response: BatchUpdateAppTableRecordResponse = client.bitable.v1.app_table_record.batch_update(request)
 
     # 处理失败返回
     if not response.success():
@@ -97,8 +87,8 @@ def embedding_update(dowei_client ,record_list: list, data_list: list):
     lark.logger.info(lark.JSON.marshal(response.data, indent=4))
 
 def feishu_dowei_embedding(dowei_client, embedding_client):
-    # 创建client
-    
+
+    # 初始化数据
     page_token = ''
     has_more = True
     middle_list = []
