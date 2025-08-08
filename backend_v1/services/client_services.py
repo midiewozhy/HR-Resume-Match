@@ -2,7 +2,6 @@ from openai import OpenAI
 from config import Config
 from volcenginesdkarkruntime import Ark
 import lark_oapi as lark
-from config import Config
 
 
 llm_client = OpenAI(
