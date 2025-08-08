@@ -7,6 +7,7 @@ from lark_oapi.api.docs.v1 import *
 from config import Config
 import threading
 from functools import wraps
+from services.client_services import doc_client
 
 _content_cache = {
     "_pre_content_cache": '',
@@ -47,9 +48,9 @@ def fetch_feishu_docs():
         access_token = token_info["access_token"]
         
         # 批量获取文档内容
-        pre_score_content = get_feishu_doc_content(Config.PRE_SCORE_TOKEN, access_token)
-        paper_score_content = get_feishu_doc_content(Config.PAPER_SCORE_TOKEN, access_token)
-        tag_content = get_feishu_doc_content(Config.TAG_DOC_TOKEN, access_token)
+        pre_score_content = get_feishu_doc_content(doc_client, Config.PRE_SCORE_TOKEN, access_token)
+        paper_score_content = get_feishu_doc_content(doc_client, Config.PAPER_SCORE_TOKEN, access_token)
+        tag_content = get_feishu_doc_content(doc_client, Config.TAG_DOC_TOKEN, access_token)
         
         # 更新缓存
         update_content_cache(pre_score_content, paper_score_content, tag_content)
@@ -139,7 +140,7 @@ def get_access_token(app_id, app_secret):
         return None
 
 
-def get_feishu_doc_content(doc_token: str, access_token: str) -> str:
+def get_feishu_doc_content(client, doc_token: str, access_token: str) -> str:
     """获取飞书文档内容
 
     Args:
@@ -149,13 +150,6 @@ def get_feishu_doc_content(doc_token: str, access_token: str) -> str:
     Returns:
         str: 文档内容
     """
-    # 创建client
-    client = (
-        lark.Client.builder()
-        .enable_set_token(True)
-        .log_level(lark.LogLevel.DEBUG)
-        .build()
-    )
 
     # 构造请求对象
     request: GetContentRequest = (
@@ -179,10 +173,6 @@ def get_feishu_doc_content(doc_token: str, access_token: str) -> str:
     return response.data.content
 
 def construct_single_system_prompt():
-    """access_token = get_access_token(Config.APP_ID, Config.APP_SECRET)['access_token']
-    paper_score_content = get_feishu_doc_content(Config.PAPER_SCORE_TOKEN, access_token)
-    pre_score_content = get_feishu_doc_content(Config.PRE_SCORE_TOKEN, access_token)
-    tag_content = get_feishu_doc_content(Config.TAG_DOC_TOKEN, access_token)"""
 
     cached_content = get_cached_content()
     pre_score_content = cached_content["_pre_content_cache"]
