@@ -2,6 +2,8 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from config import Config
 from services.feishu_services import start_feishu_thread
+from services.embedding_services import start_embedding_thread
+from services.client_services import dowei_client, embedding_client
 #from multiprocessing import Process
 #import atexit
 import os
@@ -58,6 +60,7 @@ if __name__ == '__main__':
     atexit.register(cleanup)"""
 
     start_feishu_thread(interval=21600)
+    start_embedding_thread(dowei_client, embedding_client, interval=21600)
     # 确保前端目录存在
     if not os.path.exists(FRONTEND_DIR):
         os.makedirs(FRONTEND_DIR)
