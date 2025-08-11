@@ -190,9 +190,9 @@ def get_feishu_doc_content(client, doc_token: str, access_token: str) -> str:
 def construct_single_system_prompt():
 
     cached_content = get_cached_content()
-    pre_score_content = cached_content["_pre_content_cache"]
-    paper_score_content = cached_content["_paper_content_cache"]
-    tag_content = cached_content["_tag_content_cache"]
+    pre_score_content = cached_content["pre"]
+    paper_score_content = cached_content["paper"]
+    tag_content = cached_content["tag"]
 
     system_prompt = f"""
     你是专业人才分析专家，需严格执行以下流程：  
@@ -240,8 +240,8 @@ def construct_single_system_prompt():
 def get_batch_system_prompt():
     
     cached_content = get_cached_content()
-    paper_score_content = cached_content["_paper_content_cache"]
-    tag_content = cached_content["_tag_content_cache"]
+    paper_score_content = cached_content["paper"]
+    tag_content = cached_content["tag"]
 
     system_prompt = f"""
     你是一个专业的评阅人。请根据用户提供的论文链接，结合给定的文档信息，严格按以下逻辑执行任务，并最终输出指定的JSON格式。
