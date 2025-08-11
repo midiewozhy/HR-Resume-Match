@@ -10,6 +10,10 @@ import threading
 
 from config import Config
 
+from services.general_services import calculate_content_hash as hash
+
+_jd_hash_cache = dict()
+
 
 def get_dowei_record(client, page_token):
     request: SearchAppTableRecordRequest = (SearchAppTableRecordRequest.builder() 
@@ -96,8 +100,8 @@ def feishu_dowei_embedding(dowei_client, embedding_client):
     page_token = ''
     has_more = True
     middle_list = []
-    final_list = []
-    record_list = []
+    _record_recalculate = []
+    _txt_update = []
 
     while has_more:
         # 构造请求对象
@@ -108,13 +112,22 @@ def feishu_dowei_embedding(dowei_client, embedding_client):
     for chunk in middle_list:
         txt = ''.join(piece_data['text'] for piece_data in chunk['fields']['岗位介绍'])
         record = chunk['record_id']
-        final_list.append(txt)
-        record_list.append(record)
+        _hash_cache = hash(txt)
+        if record in _jd_hash_cache.keys():
+            if _jd_hash_cache[record] != _hash_cache:
+                _jd_hash_cache[record] = _hash_cache
+                _record_recalculate.append(record)
+                _txt_update.append(txt)
+        else:
+            _jd_hash_cache[record] = _hash_cache
+            _record_recalculate.append(record)
+            _txt_update.append(txt)
+
 
     # 进行语义编码
-    embedding_data = encode(embedding_client,final_list)
+    embedding_data = encode(embedding_client, _txt_update)
     embedding_list = [item.tolist() for item in embedding_data]
-    embedding_update(dowei_client, record_list, embedding_list)
+    embedding_update(dowei_client, _record_recalculate, embedding_list)
 
 def embedding_scheduler(dowei_client,embedding_client,interval=21600): 
     """后台定时任务：循环获取文档并休眠指定时间"""
