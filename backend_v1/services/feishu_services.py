@@ -8,11 +8,22 @@ from config import Config
 import threading
 from functools import wraps
 from services.client_services import doc_client
+from services.general_services import calculate_content_hash as hash
 
-_content_cache = {
-    "_pre_content_cache": '',
-    "_paper_content_cache": '',
-    "_tag_content_cache": ''
+# 合并缓存结构，用键值对统一管理
+_cache = {
+    # 内容缓存
+    "content": {
+        "pre": "",
+        "paper": "",
+        "tag": ""
+    },
+    # 哈希缓存
+    "hash": {
+        "pre": hash(""),  # 初始化空内容的hash
+        "paper": hash(""),
+        "tag": hash("")
+    }
 }
 
 _cache_lock = threading.Lock()
@@ -26,17 +37,9 @@ def thread_safe(func):
     return wrapper
 
 @thread_safe
-def update_content_cache(pre_content, paper_content, tag_content):
-    """更新文档内容缓存"""
-    _content_cache["_pre_content_cache"] = pre_content
-    _content_cache["_paper_content_cache"] = paper_content
-    _content_cache["_tag_content_cache"] = tag_content
-
-
-@thread_safe
 def get_cached_content():
-    """获取缓存的文档内容"""
-    return _content_cache.copy()  # 返回副本避免外部修改
+    """获取缓存的文档内容副本"""
+    return {k: v for k, v in _cache["content"].items()}
 
 def fetch_feishu_docs():
     """单次获取所有飞书文档内容并更新缓存"""
@@ -48,13 +51,25 @@ def fetch_feishu_docs():
         access_token = token_info["access_token"]
         
         # 批量获取文档内容
-        pre_score_content = get_feishu_doc_content(doc_client, Config.PRE_SCORE_TOKEN, access_token)
-        paper_score_content = get_feishu_doc_content(doc_client, Config.PAPER_SCORE_TOKEN, access_token)
-        tag_content = get_feishu_doc_content(doc_client, Config.TAG_DOC_TOKEN, access_token)
-        
-        # 更新缓存
-        update_content_cache(pre_score_content, paper_score_content, tag_content)
-        lark.logger.info("飞书文档内容缓存更新成功")
+        contents = {
+            "pre": get_feishu_doc_content(doc_client, Config.PRE_SCORE_TOKEN, access_token),
+            "paper": get_feishu_doc_content(doc_client, Config.PAPER_SCORE_TOKEN, access_token),
+            "tag": get_feishu_doc_content(doc_client, Config.TAG_DOC_TOKEN, access_token)
+        }
+
+        # 计算新哈希并对比
+        new_hashes = {k: hash(v) for k, v in contents.items()}
+        has_changes = any(new_hashes[k] != _cache["hash"][k] for k in new_hashes)
+
+        if has_changes:
+            # 原子更新缓存（哈希和内容）
+            with _cache_lock:
+                _cache["hash"].update(new_hashes)
+                _cache["content"].update(contents)
+            lark.logger.info("飞书文档内容缓存更新成功")
+        else:
+            lark.logger.info("飞书文档内容无变化，无需更新缓存")
+
         return True
     except Exception as e:
         lark.logger.error(f"飞书文档获取失败: {str(e)}", exc_info=True)
