@@ -1,5 +1,6 @@
 import json
 import time
+import numpy as np
 
 import lark_oapi as lark
 from lark_oapi.api.bitable.v1 import *
@@ -22,7 +23,7 @@ def get_dowei_record(client, page_token):
             .user_id_type("open_id") 
             .page_token(page_token) 
             .page_size(10) 
-            .request_body(SearchAppTableRecordRequestBody.builder().view_id("vewVpwpAVp").field_names(["岗位介绍"]).build())
+            .request_body(SearchAppTableRecordRequestBody.builder().view_id(Config.CHUNK_VIEW_ID).field_names(["岗位介绍"]).build())
             .build())
 
     # 发起请求
@@ -128,6 +129,34 @@ def feishu_dowei_embedding(dowei_client, embedding_client):
     embedding_data = encode(embedding_client, _txt_update)
     embedding_list = [item.tolist() for item in embedding_data]
     embedding_update(dowei_client, _record_recalculate, embedding_list)
+
+def get_embedding(client):
+    page_token = ""
+    has_more = True
+    final = []
+
+    while has_more:
+        request: SearchAppTableRecordRequest = (SearchAppTableRecordRequest.builder() 
+                .app_token(Config.CHUNK_APP_TOKEN) 
+                .table_id(Config.CHUNK_TABLE_ID) 
+                .user_id_type("open_id") 
+                .page_token(page_token) 
+                .page_size(10) 
+                .request_body(SearchAppTableRecordRequestBody.builder().view_id(Config.CHUNK_VIEW_ID).field_names(["向量"]).build())
+                .build())
+        response: SearchAppTableRecordResponse = client.bitable.v1.app_table_record.search(request) 
+        data = lark.JSON.marshal(response.data, indent=4)
+        data_dict = json.loads(data)
+        has_more = data_dict['has_more']
+        page_token = data_dict['page_token'] if 'page_token' in data_dict.keys() else ''
+        data_need = data_dict['items']
+        for item in data_need:
+            item = item['fields']['向量'][0]['text']
+            vector = json.loads(item)
+            final.append(np.array(vector))
+
+    return np.array(final)
+
 
 def embedding_scheduler(dowei_client,embedding_client,interval=21600): 
     """后台定时任务：循环获取文档并休眠指定时间"""
