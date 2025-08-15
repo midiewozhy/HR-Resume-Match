@@ -195,44 +195,19 @@ def construct_single_system_prompt():
     tag_content = cached_content["tag"]
 
     system_prompt = f"""
-    你是专业人才分析专家，需严格执行以下流程：  
+    你是一个专业的评阅人。......严格按以下逻辑执行任务，并最终输出指定的JSON格式。
 
-    ### 核心规则（必须100%遵守）  
-    1. 仅用输入的简历或者论文、评分标准、岗位画像分析，不引入外部知识。    
+    处理逻辑：
+    1. 
 
+    2. 
 
-    ### 任务步骤（按顺序执行）  
-    1. 简历提取（有简历时，没有则跳过）：技术栈、研究方向（看 publications/projects 标题）、引用量/H-index（忽略软技能）。  
-    2. 论文分析（有论文时，没有则跳过）：用 {paper_score_content} 分析研究方向、创新点、优劣势。  
-    3. 预打分：结合简历或论文，用 {pre_score_content} 生成分数（浮点型）。  
-    4. 岗位匹配：用 {tag_content}为候选人或者论文作者匹配1-2个岗位，并匹配对应的岗位联系人。无匹配时，`job_match_1` 填“无适合岗位推荐”。  
+    输出要求：
+    - 
 
-
-    ### 输出强制要求（必须严格执行）  
-    - 直接输出 JSON，**不加任何前缀/后缀/解释文字**（如“结果如下：”）。  
-    - 字段：`cdd_score`（必选，float）、`job_match_1`（无匹配填“无适合岗位推荐”）、`job_match_1_contact`（无则 null）、`reason_1`（无则 null）、`job_match_2`（无则 null）、`job_match_2_contact`（无则 null）、`reason_2`（无则 null）。  
-    - 有岗位时完整输出示例：
-    {{
-        "cdd_score": 3.5,
-        "job_match_1": LLM-Posttrain ,
-        "job_match_1_contact": 严林,
-        "reason_1": 候选人主要研究方向涉及后训练优化与数据精炼,
-        "job_match_2": 前沿研究（Edge）-持续学习（continual learning）,
-        "job_match_2_contact": 蔡天乐,
-        "reason_2": 候选人有些文章涉及“可塑性-稳定性”平衡与表示分解
-    }}
-    - 无岗位时完整输出示例：
-    {{
-        "cdd_score": 2.5,
-        "job_match_1": "无适合岗位推荐",
-        "job_match_1_contact": null,
-        "reason_1": null,
-        "job_match_2": null,
-        "job_match_2_contact": null,
-        "reason_2": null
-    }}
+    关键规则：
+    - 
     """
-
     return [
         {"role": "system", "content": system_prompt}
     ]
@@ -244,35 +219,18 @@ def get_batch_system_prompt():
     tag_content = cached_content["tag"]
 
     system_prompt = f"""
-    你是一个专业的评阅人。请根据用户提供的论文链接，结合给定的文档信息，严格按以下逻辑执行任务，并最终输出指定的JSON格式。
+    你是一个专业的评阅人。......严格按以下逻辑执行任务，并最终输出指定的JSON格式。
 
     处理逻辑：
-    1. 论文总结与评分：
-    - 对论文进行总结
-    - 依据论文评阅SOP文档为论文打整数分数
-    - {paper_score_content}
+    1. 
 
-    2. 人才岗位匹配分析：
-    - 依据岗位tag文档分析作者符合的两个岗位
-    - {tag_content}
-    - 按相关性由高到低排序确定主要和次要岗位
-    - 提取对应的负责人信息
+    2. 
 
     输出要求：
-    - 仅输出一个**可直接被JSON解析器解析**的对象，使用```json和```包裹。
-    - 严格遵循以下结构（包括字段顺序、引号、逗号等），示例：
-    ```json
-    {{
-    "score": 67,
-    "summary": "论文提出了RICE方法...（总结需包含优缺点、打分原因、岗位匹配原因，注意转义双引号和换行）",
-    "tag_primary": "多模态交互与世界模型-VLM基础模型",
-    "contact_tag_primary": "林毅、吴侑彬、秦晓波",
-    "tag_secondary": "视觉-视觉模型工程",
-    "contact_tag_secondary": "xuefeng xiao、rui wang",
-    }}
+    - 
 
     关键规则：
-    - 所有判断必须严格基于两个文档内容
+    - 
     """
 
     return [{"role": "system", "content": system_prompt}]
